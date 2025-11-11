@@ -1,0 +1,79 @@
+# Visual Studio / Rider / VSCode
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+
+# Build output
+[Bb]in/
+[Oo]bj/
+artifacts/
+publish/
+*.dll
+*.exe
+*.pdb
+
+# NuGet and package managers
+packages/
+*.nupkg
+project.lock.json
+project.fragment.lock.json
+.nuget/packages/
+
+# ASP.NET / IIS / local DB files
+App_Data/*.mdf
+App_Data/*.ldf
+App_Data/aspnetdb*
+*.mdf
+*.ldf
+
+# ASP.NET Core user secrets
+secrets.json
+
+# Certificates, keys
+*.pfx
+*.cer
+*.key
+
+# Logs, temp, test results
+*.log
+TestResults/
+*.coverage
+*.coveragexml
+coverage/
+
+# Node / front-end tooling
+node_modules/
+bower_components/
+wwwroot/lib/
+npm-debug.log
+yarn-error.log
+
+# Publish/profile files
+*.Publish.xml
+*.publishsettings
+*.deployment
+*.azurePubxml
+
+# VS Code / JetBrains caches
+.vscode/
+_ReSharper*/
+*.resharper
+*.resharper*/  
+
+# Rider caches / IntelliJ
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Misc
+*.db
+*.sqlite
+*.bak
+*.cache
