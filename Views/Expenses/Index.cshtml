@@ -31,10 +31,51 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
+    (async () => {
+      const canvas = document.getElementById('myChart');
+      const ctx = canvas.getContext('2d');
+
+      try {
+        const res = await fetch('/Expenses/GetChart');
+        if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+        const data = await res.json();
+
+        console.log('Chart data:', data); // useful while developing
+
+        const labels = data.map(d => d.category ?? d.Category ?? 'Unknown');
+        const totals = data.map(d => Number(d.total ?? d.Total) || 0);
+
+        new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Expenses',
+              data: totals,
+            }]
+          },
+          options: {
+            responsive: true,
+          }
+        });
+      } catch (err) {
+        console.error(err);
+        canvas.insertAdjacentHTML('afterend',
+          '<p class="text-danger">Could not load chart. See console for details.</p>');
+      }
+    })();
+</script>
+
+
+<!--<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
     const ctx = document.getElementById('myChart');
     fetch('/Expenses/GetChart')
         .then(response => response.json())
         .then(data => {
+            const totals = data.map(d => Number(d.total));
+            const labels = data.map(d => d.category);
             new Chart(ctx, {
               type: 'pie',
               data: {
@@ -50,6 +91,7 @@
 
     
 </script>
+-->
 @*this Razor view mixes an HTML table (server-rendered) with a Chart.js pie chart (client-rendered). I’ll explain it piece-by-piece, point out small improvements you can make, and give short example controller code for the chart endpoint so you can see how the data flows end-to-end.
 
 What the view does

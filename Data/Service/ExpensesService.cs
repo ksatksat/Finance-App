@@ -21,8 +21,19 @@ namespace FinanceApp.Data.Service
             var expenses = await _context.Expenses.ToListAsync();
             return expenses;
         }
-        public IQueryable GetChartData()
+        public async Task<IEnumerable<ChartEntry>> GetChartDataAsync()
         {
+            return await _context.Expenses
+                .GroupBy(e => e.Category)
+                .Select(g => new ChartEntry
+                {
+                    Category = g.Key!,
+                    Total = g.Sum(e => e.Amount)
+                })
+                .ToListAsync();
+        }
+        //public IQueryable GetChartData()
+        //{
             /*e in GroupBy(e => e.Category) is a single element from _context.Expenses — i.e. one Expense object.
 
 g in .Select(g => ...) is a group produced by GroupBy. Its type is IGrouping<TKey, TElement> (here IGrouping<string, Expense>), so:
@@ -108,15 +119,15 @@ var data = await _context.Expenses
 
 
 That way the return type is explicit (List<ChartEntry>) and easier to serialize / test.*/
-            var data = _context.Expenses
-                .GroupBy(e => e.Category)
-                .Select(g => new
-                {
-                    Category = g.Key,
-                    Total = g.Sum(e => e.Amount)
-                });
-            return data;
-        }
+        //    var data = _context.Expenses
+        //        .GroupBy(e => e.Category)
+        //        .Select(g => new
+        //        {
+        //            Category = g.Key,
+        //            Total = g.Sum(e => e.Amount)
+        //        });
+        //    return data;
+        //}
     }
 }
 /*

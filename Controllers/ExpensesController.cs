@@ -33,9 +33,9 @@ namespace FinanceApp.Controllers
             }
             return View(expense);
         }
-        public IActionResult GetChart()
+        public async Task<IActionResult> GetChart()
         {
-            var data = _expensesService.GetChartData();
+            var data = await _expensesService.GetChartDataAsync();
             return Json(data);
         }
     }
