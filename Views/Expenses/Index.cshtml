@@ -15,7 +15,7 @@
             {
                 <tr>
                     <td>@item.Description</td>
-                    <td>@item.Amount $</td>
+                    <td>@String.Format("{0:C}",item.Amount)</td>
                     <td>@item.Category</td>
                     <td>@item.Date.ToString("yyyy-MM-dd")</td>
                 </tr>

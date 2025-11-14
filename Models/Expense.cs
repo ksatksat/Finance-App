@@ -1,19 +1,6 @@
-﻿using Microsoft.AspNetCore.Hosting.Server;
-using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using Microsoft.Extensions.Hosting;
-using Microsoft.SqlServer.Server;
+﻿using System.ComponentModel.DataAnnotations;
 using System;
-using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Diagnostics.Metrics;
-using System.Drawing;
-using System.Reflection;
-using System.Reflection.Metadata;
-using System.Runtime.Intrinsics.X86;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Model;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 namespace FinanceApp.Models
 {
     public class Expense
@@ -36,8 +23,11 @@ namespace FinanceApp.Models
         //[Column(TypeName = "decimal(18,2)")]
         //[DataType(DataType.Currency)]
         [Required]
-        [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than zero.")]
-        public double Amount { get; set; }
+        //[Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than zero.")]
+        [Column(TypeName = "decimal(18,2)")]
+        [Range(typeof(decimal), "0.01", "79228162514264337593543950335", 
+            ErrorMessage = "Amount must be greater than zero.")]
+        public decimal Amount { get; set; }
         [Required]
         public string Category { get; set; } = null!;
         /*each time when user create Expense it will put the actual time*/

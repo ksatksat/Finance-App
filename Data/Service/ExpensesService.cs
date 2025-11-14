@@ -23,6 +23,91 @@ namespace FinanceApp.Data.Service
         }
         public IQueryable GetChartData()
         {
+            /*e in GroupBy(e => e.Category) is a single element from _context.Expenses — i.e. one Expense object.
+
+g in .Select(g => ...) is a group produced by GroupBy. Its type is IGrouping<TKey, TElement> (here IGrouping<string, Expense>), so:
+
+g.Key is the category value (the group key),
+
+g itself is an enumerable of all Expense items that belong to that category.
+
+The anonymous object created in Select (new { Category = g.Key, Total = g.Sum(e => e.Amount) }) is not g — it’s a new projection (an anonymous DTO) created for each group. g.Sum(e => e.Amount) iterates the items inside that group and sums their Amount.
+
+Step-by-step with clearer names
+This is your code:
+
+var data = _context.Expenses
+    .GroupBy(e => e.Category)
+    .Select(g => new
+    {
+        Category = g.Key,
+        Total = g.Sum(e => e.Amount)
+    });
+
+
+More explicit naming to make roles obvious:
+
+var data = _context.Expenses
+    .GroupBy(expense => expense.Category)          // expense => one Expense
+    .Select(group => new                          // group => IGrouping<string, Expense>
+    {
+        Category = group.Key,                     // group.Key is the Category string
+        Total = group.Sum(item => item.Amount)   // item => each Expense inside that group
+    });
+
+
+Types involved
+
+_context.Expenses → IQueryable<Expense>
+
+.GroupBy(expense => expense.Category) → IQueryable<IGrouping<string, Expense>>
+
+In .Select(...) each group is IGrouping<string, Expense>.
+
+The result of .Select(...) is an IQueryable<anonymous type> (or you can project to a named DTO).
+
+Important note about variable names / scope
+
+You used e in multiple lambdas. Those are different parameters in different lambda scopes. For clarity, use different names like expense, group, item.
+
+g is not a DTO — it's the grouping object. The new { ... } is the anonymous DTO created from g.
+
+What gets executed and where
+
+EF Core translates this LINQ into a SQL GROUP BY + SUM so grouping and summing happen in the database.
+
+The query is deferred — nothing runs until you enumerate (ToList(), ToListAsync(), Json(data) etc.).
+
+Example result (JSON-like)
+If your expenses contain:
+
+Food: 10, 20
+
+Travel: 5, 15
+
+Then data (after materializing) would be something like:
+
+[
+  { "Category": "Food", "Total": 30 },
+  { "Category": "Travel", "Total": 20 }
+]
+
+
+Recommended small improvement
+Use a typed DTO for clarity:
+
+public class ChartEntry { public string Category { get; set; } = ""; public decimal Total { get; set; } }
+
+var data = await _context.Expenses
+    .GroupBy(expense => expense.Category ?? "Uncategorized")
+    .Select(group => new ChartEntry {
+        Category = group.Key!,
+        Total = group.Sum(item => item.Amount)
+    })
+    .ToListAsync();
+
+
+That way the return type is explicit (List<ChartEntry>) and easier to serialize / test.*/
             var data = _context.Expenses
                 .GroupBy(e => e.Category)
                 .Select(g => new
