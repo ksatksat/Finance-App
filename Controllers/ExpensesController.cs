@@ -38,6 +38,21 @@ namespace FinanceApp.Controllers
             var data = await _expensesService.GetChartDataAsync();
             return Json(data);
         }
+        //new
+        public async Task<IActionResult> Delete(int? id)
+        {
+            if (id == null) return NotFound();
+            var expense = await _expensesService.GetByIdAsync(id.Value);
+            if (expense == null) return NotFound();
+            return View(expense);
+        }
+        [HttpPost, ActionName("Delete")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteConfirmed(int id)
+        {
+            await _expensesService.DeleteAsync(id);
+            return RedirectToAction(nameof(Index));
+        }
     }
 }
 /*

@@ -128,6 +128,18 @@ That way the return type is explicit (List<ChartEntry>) and easier to serialize 
         //        });
         //    return data;
         //}
+        //new
+        public async Task<Expense?> GetByIdAsync(int id)
+        {
+            return await _context.Expenses.FindAsync(id);
+        }
+        public async Task DeleteAsync(int id)
+        {
+            var entity = await _context.Expenses.FindAsync(id);
+            if (entity == null) return;
+            _context.Expenses.Remove(entity);
+            await _context.SaveChangesAsync();
+        }
     }
 }
 /*

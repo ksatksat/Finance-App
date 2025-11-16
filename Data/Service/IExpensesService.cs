@@ -7,6 +7,9 @@ namespace FinanceApp.Data.Service
         Task Add(Expense expense);
         //IQueryable GetChartData();
         Task<IEnumerable<ChartEntry>> GetChartDataAsync();
+        //new
+        Task<Expense?> GetByIdAsync(int id);
+        Task DeleteAsync(int id);
     }
 }
 /*
