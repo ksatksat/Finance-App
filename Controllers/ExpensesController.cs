@@ -23,6 +23,7 @@ namespace FinanceApp.Controllers
             return View();
         }
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Expense expense)
         {
             if (ModelState.IsValid)
@@ -38,7 +39,7 @@ namespace FinanceApp.Controllers
             var data = await _expensesService.GetChartDataAsync();
             return Json(data);
         }
-        //new
+        //delete
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null) return NotFound();
@@ -51,6 +52,33 @@ namespace FinanceApp.Controllers
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             await _expensesService.DeleteAsync(id);
+            return RedirectToAction(nameof(Index));
+        }
+        //update
+        public async Task<IActionResult> Edit(int? id)
+        {
+            if (id == null) return NotFound();
+            var expense = await _expensesService.GetByIdAsync(id.Value);
+            if (expense == null) return NotFound();
+            return View(expense);
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(int id, Expense expense)
+        {
+            if (id != expense.Id) return BadRequest();
+            if (!ModelState.IsValid)
+            {
+                return View(expense);
+            }
+            try
+            {
+                await _expensesService.UpdateAsync(expense);
+            }
+            catch (InvalidOperationException)
+            {
+                return NotFound();
+            }
             return RedirectToAction(nameof(Index));
         }
     }

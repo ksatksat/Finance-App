@@ -32,9 +32,34 @@ namespace FinanceApp.Data.Service
                 })
                 .ToListAsync();
         }
-        //public IQueryable GetChartData()
-        //{
-            /*e in GroupBy(e => e.Category) is a single element from _context.Expenses — i.e. one Expense object.
+        //delete
+        public async Task<Expense?> GetByIdAsync(int id)
+        {
+            return await _context.Expenses.FindAsync(id);
+        }
+        public async Task DeleteAsync(int id)
+        {
+            var entity = await _context.Expenses.FindAsync(id);
+            if (entity == null) return;
+            _context.Expenses.Remove(entity);
+            await _context.SaveChangesAsync();
+        }
+        //update
+        public async Task UpdateAsync(Expense expense)
+        {
+            var existing = await _context.Expenses.FindAsync(expense.Id);
+            if (existing == null) throw new InvalidOperationException("Expense not found");
+            existing.Description = expense.Description;
+            existing.Amount = expense.Amount;
+            existing.Category = expense.Category;
+            existing.Date = expense.Date;
+            await _context.SaveChangesAsync();
+        }
+    }
+}
+//public IQueryable GetChartData()
+//{
+/*e in GroupBy(e => e.Category) is a single element from _context.Expenses — i.e. one Expense object.
 
 g in .Select(g => ...) is a group produced by GroupBy. Its type is IGrouping<TKey, TElement> (here IGrouping<string, Expense>), so:
 
@@ -48,23 +73,23 @@ Step-by-step with clearer names
 This is your code:
 
 var data = _context.Expenses
-    .GroupBy(e => e.Category)
-    .Select(g => new
-    {
-        Category = g.Key,
-        Total = g.Sum(e => e.Amount)
-    });
+.GroupBy(e => e.Category)
+.Select(g => new
+{
+Category = g.Key,
+Total = g.Sum(e => e.Amount)
+});
 
 
 More explicit naming to make roles obvious:
 
 var data = _context.Expenses
-    .GroupBy(expense => expense.Category)          // expense => one Expense
-    .Select(group => new                          // group => IGrouping<string, Expense>
-    {
-        Category = group.Key,                     // group.Key is the Category string
-        Total = group.Sum(item => item.Amount)   // item => each Expense inside that group
-    });
+.GroupBy(expense => expense.Category)          // expense => one Expense
+.Select(group => new                          // group => IGrouping<string, Expense>
+{
+Category = group.Key,                     // group.Key is the Category string
+Total = group.Sum(item => item.Amount)   // item => each Expense inside that group
+});
 
 
 Types involved
@@ -99,8 +124,8 @@ Travel: 5, 15
 Then data (after materializing) would be something like:
 
 [
-  { "Category": "Food", "Total": 30 },
-  { "Category": "Travel", "Total": 20 }
+{ "Category": "Food", "Total": 30 },
+{ "Category": "Travel", "Total": 20 }
 ]
 
 
@@ -110,38 +135,24 @@ Use a typed DTO for clarity:
 public class ChartEntry { public string Category { get; set; } = ""; public decimal Total { get; set; } }
 
 var data = await _context.Expenses
-    .GroupBy(expense => expense.Category ?? "Uncategorized")
-    .Select(group => new ChartEntry {
-        Category = group.Key!,
-        Total = group.Sum(item => item.Amount)
-    })
-    .ToListAsync();
+.GroupBy(expense => expense.Category ?? "Uncategorized")
+.Select(group => new ChartEntry {
+Category = group.Key!,
+Total = group.Sum(item => item.Amount)
+})
+.ToListAsync();
 
 
 That way the return type is explicit (List<ChartEntry>) and easier to serialize / test.*/
-        //    var data = _context.Expenses
-        //        .GroupBy(e => e.Category)
-        //        .Select(g => new
-        //        {
-        //            Category = g.Key,
-        //            Total = g.Sum(e => e.Amount)
-        //        });
-        //    return data;
-        //}
-        //new
-        public async Task<Expense?> GetByIdAsync(int id)
-        {
-            return await _context.Expenses.FindAsync(id);
-        }
-        public async Task DeleteAsync(int id)
-        {
-            var entity = await _context.Expenses.FindAsync(id);
-            if (entity == null) return;
-            _context.Expenses.Remove(entity);
-            await _context.SaveChangesAsync();
-        }
-    }
-}
+//    var data = _context.Expenses
+//        .GroupBy(e => e.Category)
+//        .Select(g => new
+//        {
+//            Category = g.Key,
+//            Total = g.Sum(e => e.Amount)
+//        });
+//    return data;
+//}
 /*
 this ExpensesService is an EF Core-backed implementation of your IExpensesService. Below I’ll explain what each part does, point out a few pitfalls you should be aware of, and give a recommended, safer version you can drop in instead.
 

@@ -6,22 +6,8 @@ namespace FinanceApp.Models
     public class Expense
     {
         public int Id { get; set; }
-        /*= null!; is assigning null to the property but using the null-forgiving operator (!) to tell the compiler:
-        “I know this is null for now, trust me — this property will be non-null at runtime before it’s used.”
-        It’s a way to silence the compiler warning about a non-nullable reference not being initialized.
-        the trailing ! (null-forgiving operator) tells the compiler to suppress the 
-        warning and treat the resulting expression as non-nullable.
-        [Required] is a data-annotation used for model validation. When a form posts, 
-        the MVC model binder/validation pipeline will mark the model invalid if 
-        Description is empty/null. In Razor views this also enables client-side 
-        validation (if scripts are present).*/
         [Required]
         public string Description { get; set; } = null!;
-        //it should be decimal instead of double for money values
-        //[Required(ErrorMessage = "Amount is required.")]
-        //[Range(0.01, 99999999.99, ErrorMessage = "Amount must be greater than zero.")]
-        //[Column(TypeName = "decimal(18,2)")]
-        //[DataType(DataType.Currency)]
         [Required]
         //[Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than zero.")]
         [Column(TypeName = "decimal(18,2)")]
@@ -34,7 +20,23 @@ namespace FinanceApp.Models
         public DateTime Date { get; set; } = DateTime.Now;
     }
 }
+/*= null!; is assigning null to the property but using the null-forgiving operator (!) to tell the compiler:
+        “I know this is null for now, trust me — this property will be non-null at runtime before it’s used.”
+        It’s a way to silence the compiler warning about a non-nullable reference not being initialized.
+        the trailing ! (null-forgiving operator) tells the compiler to suppress the 
+        warning and treat the resulting expression as non-nullable.
+        [Required] is a data-annotation used for model validation. When a form posts, 
+        the MVC model binder/validation pipeline will mark the model invalid if 
+        Description is empty/null. In Razor views this also enables client-side 
+        validation (if scripts are present).*/
+
+//it should be decimal instead of double for money values
+//[Required(ErrorMessage = "Amount is required.")]
+//[Range(0.01, 99999999.99, ErrorMessage = "Amount must be greater than zero.")]
+//[Column(TypeName = "decimal(18,2)")]
+//[DataType(DataType.Currency)]
 /*
+
 model (formatted for clarity)
 using System;
 using System.ComponentModel.DataAnnotations;
