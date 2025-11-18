@@ -29,3 +29,17 @@ body {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
   text-align: start;
 }
+/* small tweaks for navbar spacing */
+.navbar-brand {
+    letter-spacing: .5px;
+}
+
+.navbar .btn-success {
+    padding: .375rem .6rem;
+}
+
+@media (max-width: 767px) {
+    .nav-link {
+        padding: .35rem 0.5rem;
+    }
+}
