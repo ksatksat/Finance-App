@@ -1,6 +1,21 @@
 ﻿@{
-    ViewData["Title"] = "Privacy Policy";
+    ViewData["Title"] = "Privacy";
 }
-<h1>@ViewData["Title"]</h1>
+<div class="container py-4">
+    <h1>@ViewData["Title"]</h1>
 
-<p>Use this page to detail your site's privacy policy.</p>
+    <p>Quick summary — only the essentials:</p>
+
+    <ul>
+        <li><strong>What we collect:</strong> Expense entries you add (description, amount, category, date).</li>
+        <li><strong>Why:</strong> To show and summarize your expenses in the app.</li>
+        <li><strong>Where it is stored:</strong> In the application's database (configured in appsettings).</li>
+        <li><strong>Who can see it:</strong> Only users with access to the app/server; we do not share data with third parties.</li>
+        <li><strong>Security:</strong> Use HTTPS; follow best-practice database access controls. (Make sure production uses strong credentials and backups.)</li>
+    </ul>
+
+    <p>If you want your data deleted or have privacy questions, email <a href="mailto:xatma123@gmail.com?subject=FinanceApp%20Privacy%20Question">xatma123@gmail.com</a>.</p>
+
+    <p class="text-muted small">Last updated: @DateTime.UtcNow.ToString("yyyy-MM-dd")</p>
+</div>
+

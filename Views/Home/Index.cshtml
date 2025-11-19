@@ -1,8 +1,21 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+﻿@using System.Reflection
+@{
+    ViewData["Title"] = "About";
+    var version = Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "n/a";
 }
+<div class="container py-4">
+    <h1>@ViewData["Title"]</h1>
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+    <p>FinanceApp is a small personal finance tracker that helps you quickly record and review expenses. Use it to track spending by description, category and date, and to get a simple overview with charts.</p>
+
+    <ul>
+        <li><strong>Core features:</strong> Add / Edit / Delete expenses, category totals and a pie chart overview.</li>
+        <li><strong>Built with:</strong> ASP.NET Core MVC, Entity Framework Core, SQL Server (LocalDB) and Chart.js for charts.</li>
+        <li><strong>Contact:</strong> <a href="mailto:xatma123@gmail.com?subject=FinanceApp%20Question">xatma123@gmail.com</a></li>
+    </ul>
+
+    <p class="small text-muted">For production use: secure your database credentials, enable proper backups and use HTTPS.</p>
+
+    <p class="text-muted small">Last updated: @DateTime.UtcNow.ToString("yyyy-MM-dd")</p>
 </div>
+<p><strong>App version:</strong> @version</p>
