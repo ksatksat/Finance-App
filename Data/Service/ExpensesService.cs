@@ -7,23 +7,26 @@ namespace FinanceApp.Data.Service
     public class ExpensesService : IExpensesService
     {
         private readonly FinanceAppContext _context;
-        public ExpensesService(FinanceAppContext context)
+        public ExpensesService(FinanceAppContext context) => _context = context;
+        public async Task Add(Expense expense, string userId)
         {
-            _context = context;
-        }
-        public async Task Add(Expense expense)
-        {
+            expense.UserId = userId;
             _context.Expenses.Add(expense);
             await _context.SaveChangesAsync();
         }
-        public async Task<IEnumerable<Expense>> GetAll()
+        public async Task<IEnumerable<Expense>> GetAll(string userId)
         {
-            var expenses = await _context.Expenses.ToListAsync();
-            return expenses;
+            //var expenses = await _context.Expenses.ToListAsync();
+            //return expenses;
+            return await _context.Expenses
+                .Where(e => e.UserId == userId)
+                .OrderByDescending(e => e.Date)
+                .ToListAsync();
         }
-        public async Task<IEnumerable<ChartEntry>> GetChartDataAsync()
+        public async Task<IEnumerable<ChartEntry>> GetChartDataAsync(string userId)
         {
             return await _context.Expenses
+                .Where(e =>  e.UserId == userId)
                 .GroupBy(e => e.Category)
                 .Select(g => new ChartEntry
                 {
@@ -33,22 +36,24 @@ namespace FinanceApp.Data.Service
                 .ToListAsync();
         }
         //delete
-        public async Task<Expense?> GetByIdAsync(int id)
+        public async Task<Expense?> GetByIdAsync(int id, string userId)
         {
-            return await _context.Expenses.FindAsync(id);
+            var expence = await _context.Expenses.FindAsync(id);
+            if(expence == null||expence.UserId != userId)return null;
+            return expence;
         }
-        public async Task DeleteAsync(int id)
+        public async Task DeleteAsync(int id, string userId)
         {
             var entity = await _context.Expenses.FindAsync(id);
-            if (entity == null) return;
+            if (entity == null|| entity.UserId != userId) return;
             _context.Expenses.Remove(entity);
             await _context.SaveChangesAsync();
         }
         //update
-        public async Task UpdateAsync(Expense expense)
+        public async Task UpdateAsync(Expense expense, string userId)
         {
             var existing = await _context.Expenses.FindAsync(expense.Id);
-            if (existing == null) throw new InvalidOperationException("Expense not found");
+            if (existing == null||existing.UserId != userId) throw new InvalidOperationException("Expense not found");
             existing.Description = expense.Description;
             existing.Amount = expense.Amount;
             existing.Category = expense.Category;

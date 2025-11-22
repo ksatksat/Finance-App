@@ -1,8 +1,12 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using FinanceApp.Models;
+//CS0234 - error appeared and this helps :
+//dotnet add "D:\APPS_from_ASP_Book\FinanceApp\FinanceApp\FinanceApp.csproj" package Microsoft.AspNetCore.Identity.EntityFrameworkCore --version 9.0.10
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+
 namespace FinanceApp.Data
 {
-    public class FinanceAppContext : DbContext
+    public class FinanceAppContext : IdentityDbContext
     {
         public FinanceAppContext (DbContextOptions<FinanceAppContext> options)
             : base(options)

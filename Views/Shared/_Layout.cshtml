@@ -1,4 +1,6 @@
-﻿<!DOCTYPE html>
+﻿
+<!--======================================================================================-->
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -50,7 +52,28 @@
                     <!-- right-side controls -->
                     <div class="d-flex align-items-center">
                         <!-- small help / About link -->
+                        <!--Replace this ABOUT-->
                         <a class="nav-link px-2" asp-controller="Home" asp-action="Index">About</a>
+                        <!--Replace this ABOUT-->
+                        @using Microsoft.AspNetCore.Identity
+                        @inject SignInManager<IdentityUser> SignInManager
+
+                        <div class="d-flex align-items-center">
+                            @if (SignInManager.IsSignedIn(User))
+                            {
+                                <span class="me-2">Hello, @User.Identity?.Name</span>
+                                <form method="post" asp-controller="Account" asp-action="Logout" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-link nav-link">Logout</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <a asp-controller="Account" asp-action="Login" class="nav-link">Login</a>
+                                <a asp-controller="Account" asp-action="Register" class="nav-link">Register</a>
+                            }
+                        </div>
+
                     </div>
                 </div>
             </div>

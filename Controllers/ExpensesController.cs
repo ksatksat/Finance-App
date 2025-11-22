@@ -3,9 +3,12 @@ using FinanceApp.Data;
 using FinanceApp.Models;
 using Microsoft.EntityFrameworkCore;
 using FinanceApp.Data.Service;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 
 namespace FinanceApp.Controllers
 {
+    [Authorize]
     public class ExpensesController : Controller
     {
         private readonly IExpensesService _expensesService;
@@ -13,9 +16,12 @@ namespace FinanceApp.Controllers
         {
             _expensesService = expensesService;
         }
+        private string GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
         public async Task<IActionResult> Index()
         {
-            var expenses = await _expensesService.GetAll();
+            var userId = GetUserId();
+            var expenses = await _expensesService.GetAll(userId);
             return View(expenses);
         }
         public IActionResult Create()
@@ -26,24 +32,28 @@ namespace FinanceApp.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Expense expense)
         {
-            if (ModelState.IsValid)
-            {
-                await _expensesService.Add(expense);
-                
-                return RedirectToAction("Index");
-            }
-            return View(expense);
+            if(!ModelState.IsValid) return View(expense);
+            var userId = GetUserId();
+            await _expensesService.Add(expense, userId);
+            return RedirectToAction("Index");
+            //if (ModelState.IsValid)
+            //{
+            //    await _expensesService.Add(expense);
+            //    
+            //    return RedirectToAction("Index");
+            //}
+            //return View(expense);
         }
         public async Task<IActionResult> GetChart()
         {
-            var data = await _expensesService.GetChartDataAsync();
+            var data = await _expensesService.GetChartDataAsync(GetUserId());
             return Json(data);
         }
         //delete
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null) return NotFound();
-            var expense = await _expensesService.GetByIdAsync(id.Value);
+            var expense = await _expensesService.GetByIdAsync(id.Value, GetUserId());
             if (expense == null) return NotFound();
             return View(expense);
         }
@@ -51,14 +61,14 @@ namespace FinanceApp.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            await _expensesService.DeleteAsync(id);
+            await _expensesService.DeleteAsync(id, GetUserId());
             return RedirectToAction(nameof(Index));
         }
         //update
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null) return NotFound();
-            var expense = await _expensesService.GetByIdAsync(id.Value);
+            var expense = await _expensesService.GetByIdAsync(id.Value, GetUserId());
             if (expense == null) return NotFound();
             return View(expense);
         }
@@ -67,13 +77,10 @@ namespace FinanceApp.Controllers
         public async Task<IActionResult> Edit(int id, Expense expense)
         {
             if (id != expense.Id) return BadRequest();
-            if (!ModelState.IsValid)
-            {
-                return View(expense);
-            }
+            if (!ModelState.IsValid) return View(expense);
             try
             {
-                await _expensesService.UpdateAsync(expense);
+                await _expensesService.UpdateAsync(expense, GetUserId());
             }
             catch (InvalidOperationException)
             {
@@ -81,6 +88,21 @@ namespace FinanceApp.Controllers
             }
             return RedirectToAction(nameof(Index));
         }
+        //[HttpPost]
+        //[ValidateAntiForgeryToken]
+        //public async Task<IActionResult> Register(RegisterViewModel model)
+        //{
+        //    if(!ModelState.IsValid) return View(model);
+        //    var user = new IdentityUser { UserName = model.Email, Email = model.Email };
+        //    var result = await _userManager.CreateAsync(user,model.Password);
+        //    if (result.Succeeded) 
+        //    {
+        //        await _signInManager.SignInAsync(user, isPersistent: false);
+        //        return RedirectToAction("Index","Expenses");
+        //    }
+        //    foreach (var err in result.Errors) ModelState.AddModelError("",err.Description);
+        //    return View(model);
+        //}
     }
 }
 /*

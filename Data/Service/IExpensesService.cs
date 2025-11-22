@@ -3,13 +3,13 @@ namespace FinanceApp.Data.Service
 {
     public interface IExpensesService
     {
-        Task<IEnumerable<Expense>> GetAll();
-        Task Add(Expense expense);
-        Task<IEnumerable<ChartEntry>> GetChartDataAsync();
-        Task<Expense?> GetByIdAsync(int id);
-        Task DeleteAsync(int id);
+        Task<IEnumerable<Expense>> GetAll(string UserId);
+        Task Add(Expense expense, string UserId);
+        Task<IEnumerable<ChartEntry>> GetChartDataAsync(string UserId);
+        Task<Expense?> GetByIdAsync(int id, string UserId);
+        Task DeleteAsync(int id, string UserId);
         //update
-        Task UpdateAsync(Expense expense);
+        Task UpdateAsync(Expense expense, string UserId);
     }
 }
 /*

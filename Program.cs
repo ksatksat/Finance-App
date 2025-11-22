@@ -1,6 +1,8 @@
 ﻿using FinanceApp.Data;
 using FinanceApp.Data.Service;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -8,9 +10,29 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddDbContext<FinanceAppContext>(options =>
     options.UseSqlServer(builder.Configuration.
     GetConnectionString("DefaultConnectionString")));
+
+//this requires the an extra package:
+//dotnet add "D:\APPS_from_ASP_Book\FinanceApp\FinanceApp\FinanceApp\FinanceApp.csproj" package Microsoft.AspNetCore.Identity.UI --version 9.0.10
+builder.Services.AddDefaultIdentity<IdentityUser>(options =>
+{
+    options.Password.RequireDigit = true;
+    options.Password.RequiredLength = 6;
+    options.Password.RequireNonAlphanumeric = false;
+})
+    .AddEntityFrameworkStores<FinanceAppContext>();
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/Account/Login";
+    options.AccessDeniedPath = "/Account/AccessDenied";
+});
 builder.Services.AddScoped<IExpensesService, ExpensesService>();
 
 var app = builder.Build();
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<FinanceAppContext>();
+    db.Database.Migrate();   // <-- ensure DB schema (Identity tables) exist
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
@@ -24,8 +46,12 @@ else
     app.UseDeveloperExceptionPage();
 }
 
+
 app.UseHttpsRedirection();
+app.UseStaticFiles();
+
 app.UseRouting();
+app.UseAuthentication();
 
 app.UseAuthorization();
 
@@ -38,6 +64,9 @@ app.MapControllerRoute(
 
 
 app.Run();
+
+//xatma123@gmail.com pass: Aaa222
+//maxatid@gmail.com pass: Bbb222
 
 /*Migrations are a core part of the Entity Framework Core workflow and understanding them will make developing and deploying database-backed apps much easier. I’ll explain what a migration is, why you need it, the typical workflow, the pieces that EF Core creates, and best practices — with short examples so it’s practical.
 
