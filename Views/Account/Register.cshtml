@@ -4,7 +4,7 @@
     ViewData["Title"] = "Register";
 }
 
-<h2>@ViewData["Title"]</h2>
+<h2 class="text-center mb-3">@ViewData["Title"]</h2>
 @Html.ValidationSummary(true, "", new { @class = "text-danger" })
 
 <form asp-action="Register" method="post">
@@ -26,8 +26,10 @@
         <input asp-for="ConfirmPassword" class="form-control" />
         <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
     </div>
-
-    <button type="submit" class="btn btn-primary">Register</button>
+    <div class="text-center my-3">
+        <button type="submit" class="btn btn-primary">Register</button>
+    </div>
+    
 </form>
 
 @section Scripts {

@@ -1,6 +1,6 @@
 ﻿@model FinanceApp.Models.Expense
 <div class="container">
-    <h2>Add Expense</h2>
+    <h2 class="text-center mb-4">Add Expense</h2>
     <form asp-action="Create" method="post">
         @Html.AntiForgeryToken()
         <div>
@@ -15,7 +15,10 @@
             <label asp-for="Category" class="form-label"></label>
             <input asp-for="Category" class="form-control" />
         </div>
-        <button type="submit" class="btn btn-primary">Add Expense</button>
+        <div class="text-center my-3">
+            <button type="submit" class="btn btn-primary">Add Expense</button>
+        </div>
+        
     </form>
 </div>
 @*

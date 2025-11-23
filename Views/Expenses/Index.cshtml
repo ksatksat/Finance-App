@@ -1,5 +1,5 @@
 ﻿@model IEnumerable<FinanceApp.Models.Expense>
-<h2>My Expenses</h2>
+<h2 class ="text-center mb-3">My Expenses</h2>
 <div class="container">
     <table class="table table-bordered">
         <thead class="table-light">
@@ -20,17 +20,22 @@
                     <td>@item.Category</td>
                     <td>@item.Date.ToString("yyyy-MM-dd")</td>
                     <td>
-                        <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-primary">Edit</a>
-                        <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-danger">Delete</a>
+                        <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">Edit</a>
+                        <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger">Delete</a>
                     </td>
                 </tr>
             }
         </tbody>
     </table>
 </div>
-<h2>Expenses Overview</h2>
+<h2 class="text-center mb-4">Expenses Overview</h2>
 <div>
-    <canvas style="max-width:450px; max-height:450px;" id="myChart"></canvas>
+    <!--<canvas style="max-width:450px; max-height:450px;" id="myChart"></canvas>-->
+    
+    <div class="container py-3">
+        <canvas id="myChart" class="d-block mx-auto" style="max-width:450px; max-height:450px; width:100%; height:auto;"></canvas>
+    </div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
