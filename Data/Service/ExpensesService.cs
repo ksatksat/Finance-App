@@ -2,6 +2,7 @@
 using FinanceApp.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+//MODEL LAYER
 namespace FinanceApp.Data.Service 
 {
     public class ExpensesService : IExpensesService
@@ -62,280 +63,323 @@ namespace FinanceApp.Data.Service
         }
     }
 }
-//public IQueryable GetChartData()
-//{
-/*e in GroupBy(e => e.Category) is a single element from _context.Expenses — i.e. one Expense object.
-
-g in .Select(g => ...) is a group produced by GroupBy. Its type is IGrouping<TKey, TElement> (here IGrouping<string, Expense>), so:
-
-g.Key is the category value (the group key),
-
-g itself is an enumerable of all Expense items that belong to that category.
-
-The anonymous object created in Select (new { Category = g.Key, Total = g.Sum(e => e.Amount) }) is not g — it’s a new projection (an anonymous DTO) created for each group. g.Sum(e => e.Amount) iterates the items inside that group and sums their Amount.
-
-Step-by-step with clearer names
-This is your code:
-
-var data = _context.Expenses
-.GroupBy(e => e.Category)
-.Select(g => new
-{
-Category = g.Key,
-Total = g.Sum(e => e.Amount)
-});
-
-
-More explicit naming to make roles obvious:
-
-var data = _context.Expenses
-.GroupBy(expense => expense.Category)          // expense => one Expense
-.Select(group => new                          // group => IGrouping<string, Expense>
-{
-Category = group.Key,                     // group.Key is the Category string
-Total = group.Sum(item => item.Amount)   // item => each Expense inside that group
-});
-
-
-Types involved
-
-_context.Expenses → IQueryable<Expense>
-
-.GroupBy(expense => expense.Category) → IQueryable<IGrouping<string, Expense>>
-
-In .Select(...) each group is IGrouping<string, Expense>.
-
-The result of .Select(...) is an IQueryable<anonymous type> (or you can project to a named DTO).
-
-Important note about variable names / scope
-
-You used e in multiple lambdas. Those are different parameters in different lambda scopes. For clarity, use different names like expense, group, item.
-
-g is not a DTO — it's the grouping object. The new { ... } is the anonymous DTO created from g.
-
-What gets executed and where
-
-EF Core translates this LINQ into a SQL GROUP BY + SUM so grouping and summing happen in the database.
-
-The query is deferred — nothing runs until you enumerate (ToList(), ToListAsync(), Json(data) etc.).
-
-Example result (JSON-like)
-If your expenses contain:
-
-Food: 10, 20
-
-Travel: 5, 15
-
-Then data (after materializing) would be something like:
-
-[
-{ "Category": "Food", "Total": 30 },
-{ "Category": "Travel", "Total": 20 }
-]
-
-
-Recommended small improvement
-Use a typed DTO for clarity:
-
-public class ChartEntry { public string Category { get; set; } = ""; public decimal Total { get; set; } }
-
-var data = await _context.Expenses
-.GroupBy(expense => expense.Category ?? "Uncategorized")
-.Select(group => new ChartEntry {
-Category = group.Key!,
-Total = group.Sum(item => item.Amount)
-})
-.ToListAsync();
-
-
-That way the return type is explicit (List<ChartEntry>) and easier to serialize / test.*/
-//    var data = _context.Expenses
-//        .GroupBy(e => e.Category)
-//        .Select(g => new
-//        {
-//            Category = g.Key,
-//            Total = g.Sum(e => e.Amount)
-//        });
-//    return data;
-//}
 /*
-this ExpensesService is an EF Core-backed implementation of your IExpensesService. Below I’ll explain what each part does, point out a few pitfalls you should be aware of, and give a recommended, safer version you can drop in instead.
+ this is a clean, typical service-layer implementation that 
+encapsulates data access for Expense entities. I’ll explain 
+what each part does, why it’s written that way, and then give 
+concrete suggestions and improved snippets you can adopt 
+for robustness, performance, and security.
 
-What the code does (line-by-line & method summary)
-public class ExpensesService : IExpensesService
+1) File-level overview
+using FinanceApp.Data.Service;
+using FinanceApp.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+namespace FinanceApp.Data.Service
 {
-    private readonly FinanceAppContext _context;
-    public ExpensesService(FinanceAppContext context)
+    public class ExpensesService : IExpensesService
     {
-        _context = context;
+        ...
     }
+}
 
 
-Constructor injection: FinanceAppContext (your EF DbContext) is injected by DI and stored for use in methods. Because DbContext is usually registered as scoped, ExpensesService should also be scoped (you registered it that way in Program.cs), which is correct.
+The service lives in FinanceApp.Data.Service and implements the 
+IExpensesService interface (you already register the implementation with DI).
 
+It depends on FinanceAppContext (EF DbContext) to talk to the database.
+
+IExpensesService is the contract used by controllers or other 
+components — this is good separation of concerns for testability.
+
+2) Constructor / dependency injection
+private readonly FinanceAppContext _context;
+public ExpensesService(FinanceAppContext context) => _context = context;
+
+
+FinanceAppContext is injected by ASP.NET Core DI.
+
+The context is stored as a readonly field.
+
+Because DbContext is registered as scoped, the service must also be 
+scoped (which you did in Program.cs). This prevents longer-lived 
+singletons from capturing a scoped DbContext.
+
+3) Method-by-method explanation
 Add
-public async Task Add(Expense expense)
+public async Task Add(Expense expense, string userId)
 {
+    expense.UserId = userId;
     _context.Expenses.Add(expense);
     await _context.SaveChangesAsync();
 }
 
 
-Adds the provided expense entity to the Expenses DbSet and persists changes to the database asynchronously.
+Sets UserId on the Expense to bind the record to the current user.
 
-Good: async SaveChangesAsync() prevents blocking threads.
+Calls Add so EF marks the entity as Added.
 
-Note: no validation or error handling here — the controller should have performed ModelState.IsValid, but consider service-level checks if business rules exist.
+SaveChangesAsync() commits the insert to the DB.
+
+Note: no validation is performed here (assumes caller validated model). 
+Also this uses one DB round trip.
 
 GetAll
-public async Task<IEnumerable<Expense>> GetAll()
+public async Task<IEnumerable<Expense>> GetAll(string userId)
 {
-    var expenses = await _context.Expenses.ToListAsync();
-    return expenses;
+    return await _context.Expenses
+        .Where(e => e.UserId == userId)
+        .OrderByDescending(e => e.Date)
+        .ToListAsync();
 }
 
 
-Loads all Expense rows from the DB into memory and returns them as IEnumerable<Expense>.
+Returns all expenses for the given userId, ordered newest-first by Date.
 
-ToListAsync() materializes the query (executes SQL) while the DbContext is alive — good.
+Uses LINQ-to-Entities; the Where/OrderByDescending are translated to SQL.
 
-Consider ordering (e.g., by Date) and AsNoTracking() for read-only queries to improve performance.
+ToListAsync() executes the query and materializes a List<Expense>.
 
-GetChartData
-public IQueryable GetChartData()
+If this result set may be large, consider pagination (skip/take) 
+to avoid returning too many rows at once.
+
+For read-only queries you may add .AsNoTracking() to lower 
+memory overhead and avoid change-tracking.
+
+GetChartDataAsync
+public async Task<IEnumerable<ChartEntry>> GetChartDataAsync(string userId)
 {
-    var data = _context.Expenses
+    return await _context.Expenses
+        .Where(e =>  e.UserId == userId)
         .GroupBy(e => e.Category)
-        .Select(g => new
+        .Select(g => new ChartEntry
         {
-            Category = g.Key,
+            Category = g.Key!,
             Total = g.Sum(e => e.Amount)
-        });
-    return data;
+        })
+        .ToListAsync();
 }
 
 
-Builds a LINQ expression that groups expenses by Category and selects anonymous objects { Category, Total }.
+Produces aggregated data grouped by Category, projecting to 
+ChartEntry (assumed: { string Category; decimal Total; }).
 
-It returns an IQueryable (non-generic) that represents the deferred query — the SQL is not executed until the caller enumerates it.
+The grouping and sum run in the database which is efficient.
 
-This design works but has several drawbacks (see problems & recommended changes below).
+The code uses null-forgiving g.Key! — meaning Category might be 
+nullable in the model; consider handling null explicitly 
+(e.g., g.Key ?? "Uncategorized").
 
-Problems / pitfalls & why to change them
+Ensure Amount is a decimal type for accurate money calculations.
 
-Returning non-generic IQueryable / anonymous projection leaks implementation details
-
-Caller gets a raw IQueryable that still depends on EF Core query translation. This couples callers to EF and can cause DbContext lifetime issues if the query is enumerated after the context is disposed.
-
-Returning anonymous objects also forces the method signature to use IQueryable (non-generic) — it loses type information and is awkward to use in controllers or tests.
-
-Potential DbContext lifetime issues
-
-If you return an IQueryable and the controller enumerates it after the DI scope ended (rare in typical controllers, but possible in background code or tests), it will throw. Safer approach: materialize (call ToListAsync) inside the service and return concrete results.
-
-Serialization & execution
-
-In your controller you currently do var data = _expensesService.GetChartData(); return Json(data); — Json(...) will enumerate the IQueryable and execute the SQL while the controller's request scope is active, so it will work. Still, materializing earlier (and returning a typed DTO) is cleaner and easier to reason about.
-
-Missing read optimizations
-
-For read-only queries use .AsNoTracking() to avoid change tracking overhead.
-
-Type of Amount
-
-Your Expense.Amount is currently double (based on earlier messages). Summing doubles for money is risky; prefer decimal. If Amount is double, Total is double — be aware of rounding issues for currency.
-
-No Async suffix or Async on GetChartData
-
-Naming convention: use GetChartDataAsync and make it return Task<IEnumerable<ChartEntry>> (async) so intent is clear.
-
-Recommended improvements (explanations + code)
-
-Create a small DTO for chart results:
-
-public class ChartEntry
+GetByIdAsync
+public async Task<Expense?> GetByIdAsync(int id, string userId)
 {
-    public string Category { get; set; } = "";
-    public decimal Total { get; set; }  // use decimal if Amount is decimal
+    var expence = await _context.Expenses.FindAsync(id);
+    if(expence == null||expence.UserId != userId)return null;
+    return expence;
 }
 
 
-Update the interface (preferred):
+Uses FindAsync(id) to get the entity by primary key.
 
-Task<IEnumerable<Expense>> GetAllAsync();
-Task AddAsync(Expense expense);
-Task<IEnumerable<ChartEntry>> GetChartDataAsync();
+Then checks UserId to ensure the current user actually owns 
+this entity; returns null otherwise.
+
+Note: FindAsync only accepts primary key(s). If you want the DB 
+to enforce the userId condition on the query (a single SQL 
+query that includes the user check), use:
+
+await _context.Expenses.FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId);
 
 
-Improved service implementation:
+That approach avoids an extra in-memory check and is clearer for authorization.
 
-using Microsoft.EntityFrameworkCore;
-using FinanceApp.Models;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-
-public class ExpensesService : IExpensesService
+DeleteAsync
+public async Task DeleteAsync(int id, string userId)
 {
-    private readonly FinanceAppContext _context;
-    public ExpensesService(FinanceAppContext context) => _context = context;
-
-    public async Task AddAsync(Expense expense)
-    {
-        _context.Expenses.Add(expense);
-        await _context.SaveChangesAsync();
-    }
-
-    public async Task<IEnumerable<Expense>> GetAllAsync()
-    {
-        return await _context.Expenses
-                             .AsNoTracking()
-                             .OrderByDescending(e => e.Date)
-                             .ToListAsync();
-    }
-
-    public async Task<IEnumerable<ChartEntry>> GetChartDataAsync()
-    {
-        // Materialize into a typed DTO while the DbContext is alive
-        return await _context.Expenses
-                             .AsNoTracking()
-                             .GroupBy(e => e.Category ?? "Uncategorized")
-                             .Select(g => new ChartEntry
-                             {
-                                 Category = g.Key!,
-                                 Total = g.Sum(e => e.Amount) // ensure Amount is decimal if you want exact money sums
-                             })
-                             .ToListAsync();
-    }
+    var entity = await _context.Expenses.FindAsync(id);
+    if (entity == null|| entity.UserId != userId) return;
+    _context.Expenses.Remove(entity);
+    await _context.SaveChangesAsync();
 }
 
 
-Why this is better:
+Finds the entity and ensures it belongs to userId. If not found 
+or not owned, it quietly returns.
 
-AsNoTracking() reduces overhead for read-only queries.
+Remove + SaveChangesAsync commits deletion.
 
-ToListAsync() materializes queries inside the service; no IQueryable leakage.
+Consider whether you prefer an exception for missing/unauthorized 
+deletes or silent return (both are valid patterns depending on API design).
 
-ChartEntry is strongly typed and serializes cleanly to JSON for your JS chart.
-
-Async method names make intent clear.
-
-Controller usage (example)
-[HttpGet]
-public async Task<IActionResult> GetChart()
+UpdateAsync
+public async Task UpdateAsync(Expense expense, string userId)
 {
-    var data = await _expensesService.GetChartDataAsync();
-    return Json(data); // returns typed JSON array suitable for Chart.js
+    var existing = await _context.Expenses.FindAsync(expense.Id);
+    if (existing == null||existing.UserId != userId) throw new InvalidOperationException("Expense not found");
+    existing.Description = expense.Description;
+    existing.Amount = expense.Amount;
+    existing.Category = expense.Category;
+    existing.Date = expense.Date;
+    await _context.SaveChangesAsync();
 }
 
-Extra suggestions
 
-Add cancellation tokens to async methods if you expect long-running queries.
+Loads the existing entity by primary key, checks ownership, 
+updates fields, and saves.
 
-If Amount remains double, consider converting to decimal for money; update DB column mapping with [Column(TypeName = "decimal(18,2)")].
+Because existing is tracked, changing properties is enough 
+for EF to generate an UPDATE on SaveChangesAsync().
 
-If you expect many rows and only need top categories, consider paging or limiting results in the query.
+Throws InvalidOperationException when not found or unauthorized; 
+the controller should translate that to the appropriate 
+HTTP response (404 or 403).
 
-Add unit tests by mocking IExpensesService to return deterministic ChartEntry data for front-end tests.
+Consider concurrency handling (e.g., a rowversion 
+concurrency token) to avoid lost updates in concurrent scenarios.
+
+4) Security concerns & ownership checks
+
+You correctly check UserId on read, update, and delete operations 
+— this prevents one user from operating on another user’s data.
+
+Ensure the controller always passes the current user id 
+(from User.Identity / UserManager) and never accepts userId from the client.
+
+If a controller forgets to pass the current user id, your 
+checks could be bypassed — enforce usage via clear controller 
+patterns or encapsulate user resolution in the service or an authorization policy.
+
+5) Performance & correctness suggestions
+
+Prefer filtered queries for single-entity retrieval
+Replace FindAsync(id) + UserId check with a single DB query:
+
+var entity = await _context.Expenses
+    .FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId);
+
+
+Use AsNoTracking() for read-only queries (faster, less memory):
+
+return await _context.Expenses
+    .AsNoTracking()
+    .Where(e => e.UserId == userId)
+    .OrderByDescending(e => e.Date)
+    .ToListAsync();
+
+
+Pagination for GetAll:
+
+public async Task<IReadOnlyList<Expense>> GetAllPage(string userId, int page, int pageSize)
+{
+    return await _context.Expenses
+        .AsNoTracking()
+        .Where(e => e.UserId == userId)
+        .OrderByDescending(e => e.Date)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .ToListAsync();
+}
+
+
+Indexing: add a DB index on (UserId, Date) to speed up 
+queries that filter by user and order by date.
+
+Null categories: handle null categories in the grouping:
+
+Category = g.Key ?? "Uncategorized"
+
+
+Decimal/Precision for money: ensure the Amount property is 
+decimal with appropriate precision in EF mapping, e.g. [Column(TypeName = "decimal(18,2)")].
+
+Cancellation tokens: add CancellationToken parameters for better control:
+
+public async Task Add(Expense expense, string userId, CancellationToken ct = default)
+{
+    ...
+    await _context.SaveChangesAsync(ct);
+}
+
+
+Concurrency token: if multiple clients can edit the same 
+expense, add a concurrency token (e.g., byte[] RowVersion) 
+and handle DbUpdateConcurrencyException in UpdateAsync.
+
+Error handling strategy: decide on consistent behavior 
+— return null for not found, or throw exceptions; ensure 
+controllers map results to proper HTTP responses (404/403/400/500).
+
+Unit testing: because you use IExpensesService and FinanceAppContext, 
+tests can use an in-memory DB (or better: Sqlite in-memory) 
+and verify behavior, including ownership checks.
+
+6) Suggested improved code (small refactor)
+
+Here are a few practical improvements applied to GetByIdAsync, DeleteAsync, UpdateAsync, and GetAll:
+
+public async Task<Expense?> GetByIdAsync(int id, string userId, CancellationToken ct = default)
+{
+    return await _context.Expenses
+        .AsNoTracking()
+        .FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId, ct);
+}
+
+public async Task DeleteAsync(int id, string userId, CancellationToken ct = default)
+{
+    var entity = await _context.Expenses
+        .FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId, ct);
+
+    if (entity == null) return; // or throw NotFoundException
+
+    _context.Expenses.Remove(entity);
+    await _context.SaveChangesAsync(ct);
+}
+
+public async Task UpdateAsync(Expense expense, string userId, CancellationToken ct = default)
+{
+    var existing = await _context.Expenses
+        .FirstOrDefaultAsync(e => e.Id == expense.Id && e.UserId == userId, ct);
+
+    if (existing == null) throw new InvalidOperationException("Expense not found");
+
+    existing.Description = expense.Description;
+    existing.Amount = expense.Amount;
+    existing.Category = expense.Category;
+    existing.Date = expense.Date;
+
+    try
+    {
+        await _context.SaveChangesAsync(ct);
+    }
+    catch (DbUpdateConcurrencyException)
+    {
+        // handle concurrency conflict: throw a custom exception, return result, etc.
+        throw;
+    }
+}
+
+public async Task<IReadOnlyList<Expense>> GetAll(string userId, int page = 1, int pageSize = 50, CancellationToken ct = default)
+{
+    return await _context.Expenses
+        .AsNoTracking()
+        .Where(e => e.UserId == userId)
+        .OrderByDescending(e => e.Date)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .ToListAsync(ct);
+}
+
+7) Final notes
+
+Your service is well-structured and covers standard CRUD and an aggregation query for charts.
+
+The most important improvements are: make single-query 
+checks that include UserId, consider AsNoTracking() for 
+reads, add pagination for lists, add DB indexes, and add 
+concurrency handling if needed.
+
+Decide on consistent error semantics (silent return vs exceptions) 
+and ensure controller-layer maps those to correct HTTP responses.
  */

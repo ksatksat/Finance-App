@@ -6,16 +6,175 @@
 <div class="container py-4">
     <h1>@ViewData["Title"]</h1>
 
-    <p>FinanceApp is a small personal finance tracker that helps you quickly record and review expenses. Use it to track spending by description, category and date, and to get a simple overview with charts.</p>
+    <p>FinanceApp is a small personal finance tracker that helps you quickly record and 
+        review expenses. Use it to track spending by description, category and date, 
+        and to get a simple overview with charts.</p>
 
     <ul>
-        <li><strong>Core features:</strong> Add / Edit / Delete expenses, category totals and a pie chart overview.</li>
-        <li><strong>Built with:</strong> ASP.NET Core MVC, Entity Framework Core, SQL Server (LocalDB) and Chart.js for charts.</li>
-        <li><strong>Contact:</strong> <a href="mailto:xatma123@gmail.com?subject=FinanceApp%20Question">xatma123@gmail.com</a></li>
+        <li><strong>Core features:</strong> Add / Edit / Delete expenses, 
+            category totals and a pie chart overview.</li>
+        <li><strong>Built with:</strong> ASP.NET Core MVC, Entity Framework Core, 
+            SQL Server (LocalDB) and Chart.js for charts.</li>
+        <li><strong>Contact:</strong> <a href="mailto:xatma123@gmail.com?subject=FinanceApp%20Question">
+            xatma123@gmail.com</a></li>
     </ul>
 
-    <p class="small text-muted">For production use: secure your database credentials, enable proper backups and use HTTPS.</p>
+    <!--<p class="small text-muted">For production use: secure your database 
+        credentials, enable proper backups and use HTTPS.</p>-->
 
     <p class="text-muted small">Last updated: @DateTime.UtcNow.ToString("yyyy-MM-dd")</p>
 </div>
 <p><strong>App version:</strong> @version</p>
+
+@*
+    Explanation — what this Razor file does
+
+Short answer: this is an About Razor view (server-side rendered) that 
+sets the page title, reads the app assembly version, and renders a simple 
+About page with Bootstrap classes, contact mailto link, a 
+last-updated date, and the app version.
+
+Below I’ll walk through it line-by-line, explain how Razor code runs, 
+point out small behaviors you might not expect, and finish with 
+a few practical improvements you can use.
+
+Line-by-line
+@using System.Reflection
+
+
+Brings the System.Reflection namespace into scope for this view so 
+you can call Assembly methods without fully qualifying them.
+
+@{
+    ViewData["Title"] = "About";
+    var version = Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "n/a";
+}
+
+
+This is a Razor code block (@{ ... }) that runs on the server 
+when the view is rendered.
+
+ViewData["Title"] = "About"; — puts a value into the ViewData dictionary. 
+Many layouts read ViewData["Title"] to set the <title> element in the page header.
+
+var version = Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "n/a"; 
+— attempts to read the app assembly version string:
+
+Assembly.GetEntryAssembly() returns the entry assembly 
+(usually the executable assembly).
+
+.GetName().Version returns the Version (e.g., 1.0.0.0) set in the assembly metadata.
+
+?.ToString() ?? "n/a": if any step is null, use "n/a" as fallback.
+
+<div class="container py-4">
+    <h1>@ViewData["Title"]</h1>
+
+
+container py-4 are Bootstrap classes (container for responsive 
+layout, py-4 for vertical padding).
+
+@ViewData["Title"] injects the server-side value into the 
+rendered HTML (so <h1>About</h1>).
+
+    <p>FinanceApp is a small personal finance tracker ...</p>
+
+
+Static explanatory paragraph. All regular HTML — Razor will render it as-is.
+
+    <ul>
+        <li><strong>Core features:</strong> ...</li>
+        <li><strong>Built with:</strong> ASP.NET Core MVC, Entity Framework Core, 
+            SQL Server (LocalDB) and Chart.js for charts.</li>
+        <li><strong>Contact:</strong> <a href="mailto:xatma123@gmail.com?subject=FinanceApp%20Question">
+            xatma123@gmail.com</a></li>
+    </ul>
+
+
+Standard list of features.
+
+mailto: link opens the user's mail client; the ?subject= value is URL-encoded (%20 = space).
+
+    <p class="small text-muted">For production use: secure your database 
+        credentials, enable proper backups and use HTTPS.</p>
+
+
+A small, muted note about production best practices — purely presentational.
+
+    <p class="text-muted small">Last updated: @DateTime.UtcNow.ToString("yyyy-MM-dd")</p>
+</div>
+<p><strong>App version:</strong> @version</p>
+
+
+@DateTime.UtcNow.ToString("yyyy-MM-dd") is evaluated on the server 
+when the page is rendered and prints the UTC date in the format YYYY-MM-DD.
+
+Important: this is the render time. If a client loads the page 
+later, this value does not auto-update.
+
+@version outputs the version variable set earlier.
+
+Server-side vs client-side
+
+Everything you see with @... or in @{ ... } is executed on the server 
+before HTML is sent to the browser. The browser receives plain 
+HTML, CSS and JS — it does not run the C# code.
+
+Small gotchas & details
+
+Assembly.GetEntryAssembly() can be null in some hosting scenarios 
+(e.g., certain test runners or some IIS host contexts). Your 
+code already handles null with the ?? "n/a".
+
+The Version returned by GetName().Version is the assembly version 
+(from AssemblyVersionAttribute). If you want a more friendly or 
+custom version (like Semantic Version or commit hash), you may prefer:
+
+AssemblyInformationalVersionAttribute 
+(Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion)
+
+or System.Diagnostics.FileVersionInfo.GetVersionInfo(assembly.Location).ProductVersion
+
+DateTime.UtcNow prints UTC — if you want the viewer’s local 
+time, either show server local time (DateTime.Now) or render 
+the UTC value and convert in JavaScript. For multi-timezone apps, 
+showing UTC with a note is safer.
+
+The mailto: address is hard-coded. For maintainability, you 
+might want to pull contact info from configuration.
+
+Suggested improvements / alternatives
+
+Use informational version (more descriptive):
+
+@using System.Reflection
+@{
+    var infoVersion = Assembly.GetEntryAssembly()?
+        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+        .InformationalVersion ?? "n/a";
+}
+App version: @infoVersion
+
+
+Use FileVersionInfo if GetEntryAssembly() is null in your host:
+
+@using System.Diagnostics;
+@{
+    var entry = Assembly.GetEntryAssembly();
+    var version = entry != null
+        ? FileVersionInfo.GetVersionInfo(entry.Location).ProductVersion
+        : "n/a";
+}
+
+
+Make Last updated dynamic in browser (optional):
+Render the UTC date and use a tiny JS snippet to convert to 
+local time client-side if desired.
+
+Use config for contact email:
+Store email in appsettings.json and read via the controller 
+or IConfiguration so you can change it without editing the view.
+
+Localization: format dates using culture-specific formatting 
+or IViewLocalizer if you’re localizing the app.
+*@

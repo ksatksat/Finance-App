@@ -86,7 +86,7 @@
 
     <footer class="border-top footer text-muted">
         <div class="container">
-            &copy; 2025 - FinanceApp - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+            &copy; @DateTime.Now.Year - FinanceApp - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
         </div>
     </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
@@ -95,3 +95,258 @@
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
+@*
+    This is an ASP.NET Core layout Razor file (a site-wide template, 
+    typically _Layout.cshtml). It defines the HTML shell used by 
+    pages: <head>, site-wide CSS/JS includes, the site header/navigation, 
+        a main content region (@RenderBody()), and a footer. Razor 
+        expressions (@…) and block (@{ … }) run on the server and 
+        generate the final HTML that the browser receives.
+
+Below I explain the important parts, line-by-line where helpful, 
+and then list practical notes and suggested improvements.
+
+Top of the document — metadata and static assets
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - FinanceApp</title>
+    <script type="importmap"></script>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/FinanceApp.styles.css" asp-append-version="true" />
+</head>
+
+
+meta viewport makes the layout responsive on mobile.
+
+@ViewData["Title"] is populated by each view (e.g., ViewData["Title"] = "Privacy";), 
+and the template uses it in the page <title>.
+
+script type="importmap": an empty importmap placeholder. If you are 
+not using JS import maps, this tag can be removed.
+
+CSS includes:
+
+~/lib/bootstrap/... loads Bootstrap CSS from the webroot (lib folder).
+
+asp-append-version="true" appends a cache-busting query string based 
+on file content (e.g., ?v=XYZ) — good for static-file cache 
+invalidation whenever CSS changes.
+
+Razor code block to calculate current route
+@{
+    // allow active link highlighting
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
+}
+
+
+This code reads route data for the current request so the view can 
+mark a navigation link active when it matches the current 
+controller/action. This is a common pattern for highlighting 
+the current page in the navbar.
+
+Header and navbar
+<header>
+  <nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom mb-3">
+    <div class="container-fluid">
+      <a class="navbar-brand fw-bold" asp-controller="Expenses" asp-action="Index">FinanceApp</a>
+      <button class="navbar-toggler" ...>...</button>
+
+      <div class="collapse navbar-collapse" id="mainNavbar">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item">
+            <a class="nav-link @(currentController == "Expenses" && currentAction == "Index" ? "active" : "")"
+               asp-controller="Expenses" asp-action="Index">Expenses</a>
+          </li>
+          <!-- more links -->
+        </ul>
+
+        <!-- right-side controls -->
+        <div class="d-flex align-items-center">
+          <a class="nav-link px-2" asp-controller="Home" asp-action="Index">About</a>
+
+          @using Microsoft.AspNetCore.Identity
+          @inject SignInManager<IdentityUser> SignInManager
+
+          <div class="d-flex align-items-center">
+            @if (SignInManager.IsSignedIn(User))
+            {
+                <span class="me-2">Hello, @User.Identity?.Name</span>
+                <form method="post" asp-controller="Account" asp-action="Logout" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-link nav-link">Logout</button>
+                </form>
+            }
+            else
+            {
+                <a asp-controller="Account" asp-action="Login" class="nav-link">Login</a>
+                <a asp-controller="Account" asp-action="Register" class="nav-link">Register</a>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+</header>
+
+
+Key behaviors and explanations:
+
+asp-controller / asp-action are Razor tag helpers that render 
+proper href attributes (e.g., /Expenses/Index).
+
+The navbar toggler and collapse container are standard Bootstrap 
+markup for the mobile/collapsed menu.
+
+Active-link logic uses the currentController/currentAction 
+variables to add the "active" CSS class when the current 
+request matches — this is what gives the active link styling in Bootstrap.
+
+@inject SignInManager<IdentityUser> SignInManager injects the 
+    Identity sign-in service directly into the view so 
+    you can check SignInManager.IsSignedIn(User).
+
+If user is signed in: show greeting and a POST logout form.
+You include @Html.AntiForgeryToken() which protects the 
+logout action from CSRF.
+
+If user is not signed in: show Login/Register links.
+
+The logout uses a form method="post" (recommended) instead 
+of a link so the action requires a POST and the anti-forgery 
+token — this reduces CSRF risk. Your AccountController.Logout 
+already expects POST and has [ValidateAntiForgeryToken].
+
+Main content / body / footer
+<div class="container">
+    <main role="main" class="pb-3">
+        @RenderBody()
+    </main>
+</div>
+
+<footer class="border-top footer text-muted">
+    <div class="container">
+        &copy; 2025 - FinanceApp - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+    </div>
+</footer>
+
+
+@RenderBody() is the placeholder where the view-specific 
+content is injected.
+
+role="main" improves accessibility by indicating the main 
+content region.
+
+Footer contains a hard-coded year (2025) and a Privacy link. 
+Using @DateTime.Now.Year would keep the year dynamic.
+
+Script includes and script section
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="~/js/site.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Scripts", required: false)
+
+
+Scripts are included at the bottom (good practice for page 
+load performance).
+
+Note: Bootstrap 5’s bootstrap.bundle.min.js does not require 
+jQuery; including jQuery is unnecessary unless other scripts 
+depend on it. Removing jQuery reduces payload.
+
+asp-append-version="true" on site.js gives cache-busting query 
+string like ?v=xxxx.
+
+@await RenderSectionAsync("Scripts", required: false) allows 
+individual views to inject page-specific scripts into this 
+layout by defining a @section Scripts { ... } in the view. 
+It’s optional (required: false).
+
+Razor features used in the file
+
+@{ … } — server-side code block.
+
+@using and @inject — bring namespaces and services into the view scope.
+
+@if(...) { ... } else { ... } — server-side conditional rendering.
+
+Tag Helpers: asp-controller, asp-action, asp-area.
+
+@Html.AntiForgeryToken() — outputs an anti-forgery hidden field for forms.
+
+@RenderBody() and @RenderSectionAsync(...) — layout mechanics.
+
+Practical suggestions / improvements
+
+Make the footer year dynamic
+
+&copy; @DateTime.Now.Year - FinanceApp
+
+
+This avoids manual updates each year.
+
+Remove jQuery if unused
+
+If site.js and your other scripts do not require jQuery, 
+remove ~/lib/jquery/dist/jquery.min.js. Bootstrap 5 bundle 
+works without jQuery.
+
+Remove empty importmap if not used
+
+If you do not use ES module import maps, delete 
+<script type="importmap"></script>.
+
+Consider partials for nav
+
+Move the header/nav into a partial _Nav.cshtml. This keeps the 
+layout cleaner and makes the nav easier to unit-test or reuse.
+
+Use :focus-visible and ARIA where necessary
+
+Improve keyboard accessibility with :focus-visible CSS and ensure 
+aria-current="page" on the active nav link if you prefer explicit semantics.
+
+Cache and CDN options
+
+For production, consider serving Bootstrap from a CDN with integrity 
+and crossorigin attributes, or use EnvironmentTagHelper to load 
+local files in development and CDN in production.
+
+Move sign-in logic to a small view component or partial
+
+Instead of injecting SignInManager in the layout, create a small 
+view component (e.g., <vc:auth-status />) to render account links. 
+That isolates logic and is easier to test.
+
+Keep anti-forgery in sync with controller
+
+You already include @Html.AntiForgeryToken() in logout form — 
+ensure the controller action has [ValidateAntiForgeryToken] 
+(your AccountController.Logout does).
+
+Use HTTPS-only cookies & secure headers in production
+
+Ensure cookie settings, HSTS, and CSP are configured in 
+Program.cs/server to harden security.
+
+Example: small improvements applied
+
+Dynamic footer year & removal of empty importmap:
+
+<head>
+  ...
+  <title>@ViewData["Title"] - FinanceApp</title>
+  <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+...
+<footer class="border-top footer text-muted">
+  <div class="container">
+    &copy; @DateTime.Now.Year - FinanceApp - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+  </div>
+</footer>
+*@

@@ -69,458 +69,296 @@
           }
         });
       } catch (err) {
-        console.error(err);
+        //console.error(err);
         canvas.insertAdjacentHTML('afterend',
           '<p class="text-danger">Could not load chart. See console for details.</p>');
+          // Log details only when running on local dev machine
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          console.error('Chart load error', err);
+        }
       }
     })();
 </script>
 
 
-<!--<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<script>
-    const ctx = document.getElementById('myChart');
-    fetch('/Expenses/GetChart')
-        .then(response => response.json())
-        .then(data => {
-            const totals = data.map(d => Number(d.total));
-            const labels = data.map(d => d.category);
-            new Chart(ctx, {
-              type: 'pie',
-              data: {
-                labels: data.map(d => d.category),
-                datasets: [{
-                  
-                  data: data.map(d=>d.total),
-                  
-                }]
-              },
-            });
-        })
-
-    
-</script>
--->
-@*this Razor view mixes an HTML table (server-rendered) with a Chart.js pie chart (client-rendered). I’ll explain it piece-by-piece, point out small improvements you can make, and give short example controller code for the chart endpoint so you can see how the data flows end-to-end.
-
-What the view does
-@model IEnumerable<FinanceApp.Models.Expense>
-
-
-The view expects a collection (IEnumerable) of Expense objects. Each Expense should have at least Description, Amount, Category, and Date properties.
-
-Server-rendered table
-<h2>My Expenses</h2>
-<div class="container">
-  <table class="table table-bordered">
-    <thead class="table-light">
-      <tr>
-        <th>Description</th>
-        <th>Amount</th>
-        <th>Category</th>
-        <th>Date</th>
-      </tr>
-    </thead>
-    <tbody>
-      @foreach(var item in Model)
-      {
-        <tr>
-          <td>@item.Description</td>
-          <td>@item.Amount $</td>
-          <td>@item.Category</td>
-          <td>@item.Date.ToString("yyyy-MM-dd")</td>
-        </tr>
-      }
-    </tbody>
-  </table>
-</div>
-
-
-@foreach(var item in Model) loops through every Expense and renders a table row.
-
-@item.Description, @item.Category are rendered and Razor automatically HTML-encodes them, protecting against basic XSS.
-
-@item.Amount $ prints the numeric amount and then the dollar sign. (This works but has UX/formatting issues — see suggestions below.)
-
-@item.Date.ToString("yyyy-MM-dd") formats the date as 2025-10-31 (ISO-like), which is good for consistency.
-
-Client chart area
-<h2>Expenses Overview</h2>
-<canvas style="max-width:450px; max-height:450px;" id="myChart"></canvas>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-
-A <canvas> element is used as Chart.js drawing surface.
-
-Chart.js library is loaded from a CDN.
-
-Fetching data and building the pie chart
-const ctx = document.getElementById('myChart');
-fetch('/Expenses/GetChart')
-  .then(response => response.json())
-  .then(data => {
-      new Chart(ctx, {
-        type: 'pie',
-        data: {
-          labels: data.map(d => d.category),
-          datasets: [{
-            data: data.map(d=>d.total),
-          }]
-        },
-      });
-  })
-
-
-fetch('/Expenses/GetChart') requests an endpoint that should return JSON like:
-
-[
-  {"category": "Food", "total": 150.25},
-  {"category": "Transport", "total": 80.00},
-  {"category": "Utilities", "total": 120.40}
-]
-
-
-labels are built from data.map(d => d.category).
-
-datasets[0].data is the sums per category (data.map(d => d.total)).
-
-new Chart(ctx, { ... }) creates a pie chart. (Small note: Chart.js v3+ usually expects a 2D context: const ctx = document.getElementById('myChart').getContext('2d'); — but passing the element often works too.)
-
-Recommended improvements (practical)
-
-Currency formatting
-
-Instead of @item.Amount $ use @item.Amount.ToString("C") to format using current culture (shows $1,234.56 for en-US). Example:
-
-<td>@item.Amount.ToString("C")</td>
-
-
-Use DisplayNameFor for headers (keeps headers consistent with model attributes):
-
-<th>@Html.DisplayNameFor(model => model.First().Description)</th>
-
-
-(If Model can be empty, do a null/Any check first.)
-
-Null / empty Model handling
-
-Guard against Model being null or empty:
-
-@if (Model == null || !Model.Any()) {
-  <tr><td colspan="4">No expenses yet.</td></tr>
-} else {
-  foreach(...) { ... }
-}
-
-
-Canvas context & chart options
-
-Use getContext('2d'), add options, and supply colors and legend:
-
-const ctx = document.getElementById('myChart').getContext('2d');
-// generate colors or set backgroundColor array
-new Chart(ctx, {
-  type: 'pie',
-  data: { ... },
-  options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
-});
-
-
-Provide a server endpoint that returns JSON aggregated by category (see next section).
-
-Small UX: If Category is a set of known values, render it as a <select> on the add/edit form to avoid category typos.
-
-Example controller action for /Expenses/GetChart
-
-Add an action that groups by category and returns JSON:
-
-[HttpGet]
-public IActionResult GetChart()
-{
-    var data = _context.Expenses
-        .GroupBy(e => e.Category)
-        .Select(g => new {
-            category = g.Key ?? "Uncategorized",
-            total = g.Sum(e => e.Amount)
-        })
-        .ToList();
-
-    return Json(data);
-}
-
-
-This returns the JSON structure the JS expects.
-
-Use decimal sums — JSON will encode them as numbers.
-
-Example improved client-side JS (complete)
-<script>
-  const ctx = document.getElementById('myChart').getContext('2d');
-
-  fetch('/Expenses/GetChart')
-    .then(r => r.json())
-    .then(data => {
-      const labels = data.map(d => d.category);
-      const totals = data.map(d => d.total);
-
-      // simple color generator
-      const bgColors = labels.map((_, i) =>
-        `hsl(${(i * 45) % 360} 70% 55%)`
-      );
-
-      new Chart(ctx, {
-        type: 'pie',
-        data: {
-          labels,
-          datasets: [{
-            data: totals,
-            backgroundColor: bgColors,
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { position: 'bottom' } }
-        }
-      });
-    });
-</script>
-
-
-This adds background colors and responsive legend.
-
-Security / data notes
-
-Razor auto-encodes string content, so the table text is safe.
-
-Chart labels are used client-side in Canvas; they’re not injected as raw HTML, so typical XSS risk is low — but always validate/clean data server-side if categories can contain malicious input.
-
-If you expose endpoints that alter data, protect them with anti-forgery or authentication.*@
-
 @*
-    let’s walk through this JavaScript step-by-step and unpack what every part does, why it’s there, what can go wrong, and some practical improvements you can drop in. I’ll show both the original flow (promise chain) and a cleaner async/await version plus tips for Chart.js specifics.
+1) View model and server-side table rendering
+@model IEnumerable<FinanceApp.Models.Expense>
+...
+@foreach(var item in Model)
+{
+    <tr>
+        <td>@item.Description</td>
+        <td>@String.Format("{0:C}", item.Amount)</td>
+        <td>@item.Category</td>
+        <td>@item.Date.ToString("yyyy-MM-dd")</td>
+        <td>
+            <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">Edit</a>
+            <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger">Delete</a>
+        </td>
+    </tr>
+}
 
-The original code
+
+@model IEnumerable<Expense> — the controller passes a sequence of 
+    Expense objects to the view. This makes the view strongly 
+    typed and enables asp-for / model access like @item.Description.
+
+The foreach produces one <tr> per expense. Each <td> is a table cell:
+
+@item.Description — HTML-encoded output of the description.
+
+@String.Format("{0:C}", item.Amount) — formats the amount as 
+currency using the server culture (e.g., $12.34). If you want 
+client/user culture you must handle that separately.
+
+@item.Date.ToString("yyyy-MM-dd") — explicit date format 
+(ISO-like). This is deterministic but not localized.
+
+The Edit and Delete links use Tag Helpers:
+
+asp-action="Edit" + asp-route-id="@item.Id" generates the 
+correct URL for the MVC action (e.g., /Expenses/Edit/123), 
+respecting routing.
+
+Note: Delete here is a link to a confirmation page (GET). The 
+actual destructive action should be a POST with anti-forgery 
+protection — do that in the controller.
+
+Server-side notes
+
+Razor expressions and formatting run on the server before 
+the page is sent to the browser.
+
+Razor output is HTML-encoded by default — that prevents 
+script injection from Description.
+
+2) Chart area (HTML/CANVAS)
+<canvas id="myChart" class="d-block mx-auto" style="max-width:450px; max-height:450px; width:100%; height:auto;"></canvas>
+
+
+<canvas> is the required drawing surface for Chart.js. 
+    Chart.js gets the 2D context (canvas.getContext('2d')) 
+    and draws the chart as pixels.
+
+The inline CSS sets a responsive maximum size; Chart.js will 
+handle pixel scaling (and devicePixelRatio) when responsive: true is set.
+
+Accessibility
+
+Canvas is not semantic. Add role="img" plus an aria-label or 
+provide a textual fallback (or a hidden data table) for screen readers.
+
+Example accessible markup you can add:
+
+<canvas id="myChart" role="img" aria-label="Expenses by category pie chart" ...></canvas>
+<noscript>
+  <p class="text-muted">Chart requires JavaScript. See the expenses table above for the data.</p>
+</noscript>
+
+3) Loading Chart.js
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<script>
-    const ctx = document.getElementById('myChart');
-    fetch('/Expenses/GetChart')
-        .then(response => response.json())
-        .then(data => {
-            new Chart(ctx, {
-              type: 'pie',
-              data: {
-                labels: data.map(d => d.category),
-                datasets: [{
-                  data: data.map(d => d.total),
-                }]
-              },
-            });
-        })
-</script>
 
-Line-by-line explanation
-1) Loading Chart.js
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+Loads Chart.js from a CDN. In production you may 
+prefer SRI (integrity) attributes or serve a local copy.
 
+4) Client-side script — what it does and why
+(async () => {
+  const canvas = document.getElementById('myChart');
+  const ctx = canvas.getContext('2d');
 
-This includes the Chart.js library from a CDN so you can use the Chart constructor in the page.
-
-Chart.js exposes a global Chart variable (when used this way). If you use a bundler/module system, you’d import it instead.
-
-2) Getting the canvas element
-const ctx = document.getElementById('myChart');
-
-
-Finds the <canvas id="myChart"></canvas> element in your DOM and stores it in ctx.
-
-Note: Chart.js usually expects a 2D drawing context. Best practice is:
-
-const ctx = document.getElementById('myChart').getContext('2d');
-
-
-Using .getContext('2d') returns the CanvasRenderingContext2D that Chart.js draws onto. Passing the element directly sometimes still works (Chart.js accepts it), but .getContext('2d') is explicit and safe.
-
-3) Fetching chart data from the server
-fetch('/Expenses/GetChart')
-    .then(response => response.json())
-
-
-fetch() sends an HTTP GET to /Expenses/GetChart.
-
-It returns a promise that resolves to a Response object.
-
-Calling response.json() parses the response body as JSON and returns another promise resolving to the JavaScript value (usually an array or object).
-
-Missing check: this code assumes the server returns HTTP 200 + valid JSON. A safer approach checks response.ok and handles non-JSON or errors.
-
-4) Building the Chart from the returned data
-.then(data => {
-    new Chart(ctx, {
-      type: 'pie',
-      data: {
-        labels: data.map(d => d.category),
-        datasets: [{
-          data: data.map(d => d.total),
-        }]
-      },
-    });
-})
-
-
-data is expected to be an array of objects like:
-
-[
-  { "category": "Food", "total": 150.25 },
-  { "category": "Transport", "total": 80.00 }
-]
-
-
-labels: data.map(d => d.category) creates an array of category names for the pie slices.
-
-datasets[0].data: data.map(d => d.total) creates an array of numeric values (the size of each pie slice).
-
-type: 'pie' tells Chart.js to render a pie chart.
-
-No options or visual styling are provided, so Chart.js uses defaults (basic colors, a default legend, and default tooltips).
-
-What can go wrong / edge cases
-
-Network / server error: If /Expenses/GetChart returns 404, 500, or non-JSON, response.json() will either throw or give unexpected data. Add checks and error handling.
-
-Empty data: If data is [], the chart will render empty — you may want to show a “no data” message.
-
-CORS: If the endpoint is on another origin, you must enable CORS on the server.
-
-Type of total: Ensure total is numeric. Strings like "150.25" will usually be coerced but better to return numbers.
-
-Chart updates: If this code runs again, it creates another Chart instance on the same canvas. You should keep a reference and call .destroy() before creating a new chart if updating.
-
-Formatting: Values aren’t formatted as currency in tooltips by default; you can add tooltip callbacks to format them.
-
-Improved (safer) promise-style example
-const canvas = document.getElementById('myChart');
-const ctx = canvas.getContext('2d');
-
-fetch('/Expenses/GetChart')
-  .then(response => {
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return response.json();
-  })
-  .then(data => {
-    if (!Array.isArray(data) || data.length === 0) {
-      // show fallback UI or a message
-      console.warn('No chart data');
-      return;
-    }
-
-    const labels = data.map(d => d.category);
-    const totals = data.map(d => d.total);
-
-    const bg = labels.map((_, i) => `hsl(${(i * 45) % 360} 70% 55%)`);
-
-    new Chart(ctx, {
-      type: 'pie',
-      data: {
-        labels,
-        datasets: [{
-          data: totals,
-          backgroundColor: bg,
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { position: 'bottom' }
-        }
-      }
-    });
-  })
-  .catch(err => {
-    console.error('Failed to load chart data:', err);
-  });
-
-
-Adds HTTP status check, empty-data handling, simple color generation and a catch to log errors.
-
-Cleaner async/await version (recommended)
-(async function renderChart() {
   try {
-    const canvas = document.getElementById('myChart');
-    const ctx = canvas.getContext('2d');
-
     const res = await fetch('/Expenses/GetChart');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
     const data = await res.json();
 
-    if (!data || data.length === 0) {
-      console.log('No expenses to show');
-      return;
-    }
+    console.log('Chart data:', data);
 
-    const labels = data.map(d => d.category);
-    const totals = data.map(d => d.total);
+    const labels = data.map(d => d.category ?? d.Category ?? 'Unknown');
+    const totals = data.map(d => Number(d.total ?? d.Total) || 0);
 
-    const colors = labels.map((_, i) => `hsl(${(i*47) % 360} 70% 50%)`);
-
-    const chart = new Chart(ctx, {
-      type: 'pie',
-      data: { labels, datasets: [{ data: totals, backgroundColor: colors }] },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { position: 'bottom' },
-          tooltip: {
-            callbacks: {
-              label: (context) => {
-                const value = context.raw;
-                // format as currency (basic)
-                return `${context.label}: $${Number(value).toFixed(2)}`;
-              }
-            }
-          }
-        },
-        maintainAspectRatio: false,
-      }
-    });
-
+    new Chart(ctx, { type: 'pie', data: { labels, datasets: [{ label: 'Expenses', data: totals }] }, options: { responsive: true } });
   } catch (err) {
-    console.error('Error rendering chart:', err);
+    canvas.insertAdjacentHTML('afterend','<p class="text-danger">Could not load chart. See console for details.</p>');
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      console.error('Chart load error', err);
+    }
   }
 })();
 
+Step-by-step explanation
 
-Easier to read, handles errors, formats tooltip values as currency, and prevents default aspect-ratio behavior.
+IIFE async — an immediately-invoked async function keeps 
+variables local and runs when the script loads.
 
-Tips specific to Chart.js usage
+Get canvas context — getContext('2d') provides the drawing API Chart.js uses.
 
-Context: prefer getContext('2d').
+Fetch chart data — fetch('/Expenses/GetChart') calls the server 
+endpoint that must return JSON (array of objects with 
+category/total fields). If response status is not OK, the 
+code throws an error to trigger the catch.
 
-Colors: supply backgroundColor in the dataset to control slice colors.
+Recommendation: generate the URL with @Url.Action("GetChart","Expenses") 
+so routing changes won’t break the code:
 
-Legend & tooltips: use options.plugins.legend and options.plugins.tooltip to customize them.
-
-Destroy old charts: if you rerender, track the Chart instance and call .destroy() first to avoid memory leaks.
-
-if (window.myPie) window.myPie.destroy();
-window.myPie = new Chart(ctx, {...});
+const url = '@Url.Action("GetChart","Expenses")';
+const res = await fetch(url);
 
 
-Responsive sizing: put canvas inside a container with a set height when maintainAspectRatio: false for consistent results.
+Parse JSON — await res.json() parses the JSON response into data.
 
-Data shape: server should return application/json and numeric totals (not strings) for best results.
+Logging — console.log('Chart data:', data) is useful during dev; 
+you already limit console.error to localhost only which is a 
+good pattern for suppressing raw errors in production.
 
-Summary — what your code does (short)
+Build labels and totals arrays
 
-Loads Chart.js.
+d.category ?? d.Category ?? 'Unknown' — uses the nullish 
+coalescing operator (??) to accept either category or 
+Category or fall back to 'Unknown'. ?? treats only 
+null/undefined as missing (not '' or 0).
 
-Finds the canvas with id myChart.
+Number(d.total ?? d.Total) || 0 — picks total or Total, converts 
+to a number and then uses || 0 to coerce falsy values (including NaN) 
+to 0. Note that || treats 0 as falsy too; in this case the fallback 
+is also 0 so the result is the same, but if you want to preserve a 
+real 0 you should use Number.isFinite (see improved code below).
 
-Requests /Expenses/GetChart.
+Create Chart — new Chart(ctx, {...}) constructs a pie chart with 
+those labels and totals. responsive: true allows Chart.js to 
+adapt to container size.
 
-Parses the returned JSON.
+Error handling — on any error, the code injects an inline error 
+message and logs details to the console only on localhost.
 
-Builds a pie chart where each slice label is category and size is total.
+5) Server-side expectation
+
+The endpoint /Expenses/GetChart should return JSON like:
+
+[
+  { "category": "Groceries", "total": 123.45 },
+  { "category": "Rent", "total": 900.00 }
+]
+
+
+Typical C# controller code:
+
+var chartData = await _context.Expenses
+    .GroupBy(e => e.Category)
+    .Select(g => new ChartEntry { Category = g.Key, Total = g.Sum(e => e.Amount) })
+    .ToListAsync();
+return Ok(chartData);
+
+
+Protect that endpoint (e.g., [Authorize]) and ensure it 
+returns only the current user's data if multi-user.
+
+6) Security & reliability notes
+
+Authorization: always verify on the server that the caller 
+is allowed to see the chart data.
+
+Data validation: the client code assumes data is an array. 
+If the server returns malformed JSON, res.json() may throw.
+
+Error reporting: you already restrict console.error to localhost — 
+that’s a good pattern. For production diagnostics, send sanitized 
+errors to your server or telemetry service (Application Insights, Sentry).
+
+CORS: fetching a same-origin @Url.Action avoids CORS. If you 
+fetch cross-origin, configure CORS properly.
+
+XSS: JSON data displayed by Chart.js is not inserted as 
+raw HTML, so XSS risk is low — but always ensure that 
+textual labels are handled carefully if used elsewhere.
+
+7) Performance and UX suggestions
+
+Use @Url.Action rather than hardcoded path (see above).
+
+Preserve 0 values correctly: use a more robust numeric conversion:
+
+const totals = data.map(d => {
+  const n = Number(d.total ?? d.Total);
+  return Number.isFinite(n) ? n : 0;
+});
+
+
+This preserves real 0 values and converts NaN/Infinity to 0.
+
+DevicePixelRatio (sharp charts on retina):
+
+new Chart(ctx, {
+  type: 'pie',
+  data: {...},
+  options: { responsive: true, devicePixelRatio: window.devicePixelRatio || 1 }
+});
+
+
+Accessibility: add role="img" and aria-label to the canvas 
+and provide a <noscript> fallback or an off-screen data 
+    table for screen readers.
+
+Retry UX: provide a retry button in the catch block so users 
+can attempt to reload the chart.
+
+Move inline script into a @section Scripts (if your layout 
+supports sections) so scripts are organized and page-specific 
+scripts load in the right place.
+
+Chart colors and tooltips: set backgroundColor and tooltip 
+callbacks to format numbers as localized currency for better UX.
+
+Caching: if the chart data is heavy, add server-side caching 
+or Cache-Control headers.
+
+8) Improved, copy-paste JS (safe and production-friendly)
+<script>
+  (async function loadChart() {
+    const canvas = document.getElementById('myChart');
+    const ctx = canvas.getContext('2d');
+
+    try {
+      const res = await fetch('@Url.Action("GetChart","Expenses")');
+      if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+      const data = await res.json();
+
+      const labels = data.map(d => d.category ?? d.Category ?? 'Unknown');
+      const totals = data.map(d => {
+        const n = Number(d.total ?? d.Total);
+        return Number.isFinite(n) ? n : 0;
+      });
+
+      new Chart(ctx, {
+        type: 'pie',
+        data: { labels, datasets: [{ label: 'Expenses', data: totals }] },
+        options: { responsive: true, devicePixelRatio: window.devicePixelRatio || 1 }
+      });
+    } catch (err) {
+      canvas.insertAdjacentHTML('afterend',
+        '<p class="text-danger">Could not load the chart. Please try again later.</p>');
+      if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+        console.error('Chart load error', err);
+      } else {
+        // optionally POST a minimal sanitized error to server for diagnostics
+      }
+    }
+  })();
+</script>
+
+9) Quick checklist you can apply immediately
+
+Replace hardcoded fetch URL with @Url.Action.
+
+Use Number.isFinite for numeric parsing.
+
+Add role="img" and aria-label to the canvas 
++ <noscript> fallback.
+
+Keep console.error only in dev, and consider 
+server-side telemetry for production errors.
+
+Protect /Expenses/GetChart with [Authorize] and filter by user.
+
 *@

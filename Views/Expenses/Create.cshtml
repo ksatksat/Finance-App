@@ -9,7 +9,7 @@
         </div>
         <div>
             <label asp-for="Amount" class="form-label"></label>
-            <input asp-for="Amount" class="form-control" step="0.01" min="0.01"/>
+            <input type="number" asp-for="Amount" class="form-control" step="0.01" min="0.01"/>
         </div>
         <div>
             <label asp-for="Category" class="form-label"></label>
@@ -21,8 +21,203 @@
         
     </form>
 </div>
+
 @*
-    This is an ASP.NET Core MVC Razor view that renders a Bootstrap-styled form for creating a new Expense object (model: FinanceApp.Models.Expense). The form fields are bound to the model properties using Tag Helpers (asp-for) so when the form is submitted the framework can model-bind posted values back into an Expense instance in your controller.
+    This Razor view is a simple Create form for an Expense model. 
+    It renders a Bootstrap-styled HTML form whose inputs are bound 
+    to the Expense properties via ASP.NET Core tag helpers (asp-for).
+    When submitted it sends an HTTP POST to the Create action on the 
+    current controller. The view includes an anti-forgery token and 
+    basic Bootstrap layout classes.
+
+Below I explain the important pieces, why they matter, and then give 
+a small, production-ready improvement of the form that adds 
+validation output and a few best-practices.
+
+Line-by-line explanation
+@model FinanceApp.Models.Expense
+
+
+Declares the view model type for this Razor view. asp-for and 
+other tag helpers will generate name and id attributes that 
+match this model’s properties.
+
+<div class="container">
+    <h2 class="text-center mb-4">Add Expense</h2>
+
+
+Basic Bootstrap container and heading. text-center 
+centers the heading; mb-4 gives bottom margin.
+
+<form asp-action="Create" method="post">
+    @Html.AntiForgeryToken()
+
+
+asp-action="Create": the Form Tag Helper will target the 
+Create action on the current controller.
+
+method="post": the form will submit an HTTP POST.
+
+@Html.AntiForgeryToken() emits a hidden field that holds an 
+anti-forgery token so the server can validate the request 
+and protect against CSRF attacks. (Keep this or ensure 
+your controller action is decorated with [ValidateAntiForgeryToken].)
+
+<div>
+    <label asp-for="Description" class="form-label"></label>
+    <input asp-for="Description" class="form-control"/>
+</div>
+
+
+label + input use asp-for="Description". The framework will:
+
+Render the <label for="Description"> text using metadata (display name) from the model (e.g., [Display(Name = "...")]), and
+
+Render an <input> whose name and id match the model property so model binding on POST can populate an Expense parameter.
+
+form-control is a Bootstrap class to style the input.
+
+<div>
+    <label asp-for="Amount" class="form-label"></label>
+    <input asp-for="Amount" class="form-control" step="0.01" min="0.01"/>
+</div>
+
+
+Binds to Amount. step="0.01" and min="0.01" are HTML attributes t
+hat help browsers constrain numeric entry (useful for monetary values). 
+Note: to get an HTML <input type="number"> you should 
+include type="number" on the input tag or rely on editor templates.
+
+<div>
+    <label asp-for="Category" class="form-label"></label>
+    <input asp-for="Category" class="form-control" />
+</div>
+
+
+Binds to Category. If Category is an enum or you want a select list, you 
+would replace this with a <select asp-for="Category" asp-items="...">.
+
+<div class="text-center my-3">
+    <button type="submit" class="btn btn-primary">Add Expense</button>
+</div>
+
+
+Centered submit button styled by Bootstrap.
+
+How this ties to the controller and model binding
+
+On submit, ASP.NET Core model binding looks for form fields named 
+like the model properties (e.g., Description, Amount, Category) 
+and attempts to bind them to the action parameter (for example: 
+public async Task<IActionResult> Create(Expense expense)).
+
+The action should validate the model (e.g., if (!ModelState.IsValid) 
+return View(expense);) and typically should set 
+expense.UserId = currentUserId on the server-side — do not 
+accept UserId from the client.
+
+Validation and client-side feedback
+
+This view currently does not show validation messages. To 
+enable a good user experience:
+
+Add DataAnnotations to the Expense model (e.g., [Required], [Range], [StringLength]).
+
+Include validation message elements in the view (asp-validation-for) 
+so server-side and client-side validation messages are visible.
+
+Ensure _ValidationScriptsPartial (or the equivalent) is included in 
+the layout to enable unobtrusive client-side validation 
+(requires jquery + jquery-validate + jquery-validate-unobtrusive).
+
+Accessibility and UX notes
+
+Use class="mb-3" (Bootstrap form spacing) on each form group 
+for consistent spacing.
+
+Use <input type="number" asp-for="Amount" ... /> for numeric 
+inputs so mobile keyboards and browsers show number controls.
+
+For dates use <input type="date" asp-for="Date" /> when the model has a Date property.
+
+Recommended improved version
+
+This version adds validation display, uses Bootstrap form-group spacing, 
+forces type="number" for Amount, and includes a validation summary.
+
+@model FinanceApp.Models.Expense
+
+<div class="container">
+    <h2 class="text-center mb-4">Add Expense</h2>
+
+    <form asp-action="Create" method="post" class="needs-validation" novalidate>
+        @Html.AntiForgeryToken()
+
+        <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+        <div class="mb-3">
+            <label asp-for="Description" class="form-label"></label>
+            <input asp-for="Description" class="form-control" />
+            <span asp-validation-for="Description" class="text-danger"></span>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="Amount" class="form-label"></label>
+            <input type="number" asp-for="Amount" class="form-control" step="0.01" min="0.01" />
+            <span asp-validation-for="Amount" class="text-danger"></span>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="Category" class="form-label"></label>
+            <input asp-for="Category" class="form-control" />
+            <span asp-validation-for="Category" class="text-danger"></span>
+        </div>
+
+        <div class="text-center my-3">
+            <button type="submit" class="btn btn-primary">Add Expense</button>
+        </div>
+    </form>
+</div>
+
+
+Notes about the improved form:
+
+asp-validation-for outputs validation messages for each field.
+
+asp-validation-summary="All" shows model-level and field-level errors.
+
+novalidate + needs-validation are optional if you plan to use 
+Bootstrap custom validation; client-side unobtrusive validation 
+works independently if you include validation scripts.
+
+Controller-side expectations (example)
+
+Your controller POST action should look similar to:
+
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> Create(Expense expense)
+{
+    if (!ModelState.IsValid)
+        return View(expense);
+
+    var userId = _userManager.GetUserId(User); // or however you get current user id
+    await _expensesService.Add(expense, userId);
+
+    return RedirectToAction("Index");
+}
+
+
+Always call GetUserId(User) (or equivalent) on the server and 
+pass that userId to the service — do not trust client-provided user identifiers.
+*@
+@*
+    This is an ASP.NET Core MVC Razor view that renders a 
+    Bootstrap-styled form for creating a new Expense object 
+    (model: FinanceApp.Models.Expense). The form fields are 
+    bound to the model properties using Tag Helpers (asp-for) 
+    so when the form is submitted the framework can model-bind 
+    posted values back into an Expense instance in your controller.
 
 What each part does
 
@@ -33,22 +228,33 @@ Declares the view’s model type. All asp-for tag helpers reference properties o
 Simple Bootstrap container for layout.
 
 <form asp-action="Create" method="post">
-A form tag helper that will post to the Create action on the current controller. Because method="post", the form will send a POST request to e.g. /Expenses/Create. When using the form tag helper, ASP.NET Core will also emit an anti-forgery token for POST by default (and your action should validate it with [ValidateAntiForgeryToken]).
+A form tag helper that will post to the Create action on the current 
+controller. Because method="post", the form will send a POST 
+request to e.g. /Expenses/Create. When using the form tag helper, 
+ASP.NET Core will also emit an anti-forgery token for POST by default 
+(and your action should validate it with [ValidateAntiForgeryToken]).
 
 label + input with asp-for="..."
 The asp-for tag helper binds the element to a model property:
 
-label asp-for="Description" generates <label for="Description">Description</label> (text comes from the property name or [Display] attribute on the model).
+label asp-for="Description" generates 
+<label for="Description">Description</label> 
+(text comes from the property name or [Display] attribute on the model).
 
-input asp-for="Description" generates <input id="Description" name="Description" value="..." />.
-The name and id attributes are important because the model binder uses them to reconstruct the Expense object on POST.
+input asp-for="Description" generates 
+<input id="Description" name="Description" value="..." />.
+The name and id attributes are important because the model 
+binder uses them to reconstruct the Expense object on POST.
 
 <button type="submit">Add Expense</button>
 Submits the form.
 
 How model binding works (brief)
 
-When the browser posts the form, ASP.NET Core looks at names like Description, Amount, Category and tries to bind them to an action parameter such as public async Task<IActionResult> Create(Expense expense). Types are converted (e.g., posted "12.50" -> decimal Amount).
+When the browser posts the form, ASP.NET Core looks at names like 
+Description, Amount, Category and tries to bind them to an action 
+parameter such as public async Task<IActionResult> 
+    Create(Expense expense). Types are converted (e.g., posted "12.50" -> decimal Amount).
 
 Example generated HTML for one field (approx.)
 <label for="Description" class="form-label">Description</label>
@@ -89,7 +295,8 @@ In the view add asp-validation-for and validation-summary:
 </form>
 
 
-Also include the client-side validation scripts (jquery.validate + unobtrusive) if you want instant client-side feedback.
+Also include the client-side validation scripts 
+(jquery.validate + unobtrusive) if you want instant client-side feedback.
 
 Amount input type
 For money use a number input with step:
@@ -100,13 +307,17 @@ For money use a number input with step:
 (But still validate on the server. Number input improves UX.)
 
 Category as select
-If categories are known, render a <select> instead of a free text input to avoid inconsistent categories.
+If categories are known, render a <select> instead of a free text 
+    input to avoid inconsistent categories.
 
 Anti-forgery
-The form tag helper emits the antiforgery token for POST forms automatically. In your controller POST action use [ValidateAntiForgeryToken].
+The form tag helper emits the antiforgery token for POST forms automatically. 
+In your controller POST action use [ValidateAntiForgeryToken].
 
 Accessibility
-label produced by asp-for ties to the input's id automatically—good for accessibility. Keep the label visible (the tag helper will output the display text).
+label produced by asp-for ties to the input's id automatically—good 
+for accessibility. Keep the label visible (the tag helper will
+output the display text).
 
 Minimal controller example
 public class ExpensesController : Controller

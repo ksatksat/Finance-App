@@ -1,3 +1,4 @@
+﻿/*VIEW LAYER*/
 html {
   font-size: 14px;
 }
@@ -43,3 +44,262 @@ body {
         padding: .35rem 0.5rem;
     }
 }
+/*
+    Short summary: this stylesheet contains a few global layout and typography 
+    rules, responsive font-size adjustments, custom focus styles (box-shadow) 
+    for form controls and buttons, tweaks to form-floating placeholder 
+    alignment, and small spacing adjustments for the navbar. It appears 
+    to be written to sit on top of Bootstrap (you’re using --bs-* 
+    variables and classes like .form-floating, .navbar, .btn, .form-control).
+
+Below I explain each block, why it’s there, and a few practical notes & suggestions.
+
+1) Base font-size and responsive adjustment
+html {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+
+Sets the root font-size on <html> to 14px by default and increases 
+    it to 16px on viewports ≥ 768px (tablet+).
+
+Effects: 1rem equals 14px (mobile) or 16px (desktop). This is a 
+    simple responsive typographic scale approach.
+
+Note: changing html font-size affects all rem-based measurements 
+    site-wide. If you use fixed px elsewhere it won’t change.
+
+Suggestion: prefer rem throughout for consistency. Consider using :root 
+    and CSS custom properties for scale if you want a more flexible 
+    approach. Also consider accessibility: some users change base 
+    font-size; overriding may interfere with their preferences.
+
+2) Focus ring / focus shadow for interactive controls
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+
+Targets focused states on buttons, focused-by-active buttons, 
+    .btn-link.nav-link when focused, text inputs (.form-control), 
+    and checkbox/radio inputs (.form-check-input).
+
+Applies a compound box-shadow that creates a thin white ring (0.1rem) 
+    immediately around the element and a larger blue ring (#258cfb) 
+    outside that (0.25rem). This mimics an outline with an inner 
+    “gap” (white) for contrast.
+
+Purpose: visually indicate keyboard focus (accessibility + UX). 
+    It replaces or enhances the native outline.
+
+Notes & suggestions:
+
+Consider using :focus-visible instead of :focus to avoid showing the 
+    ring on mouse clicks (improves UX for mouse users while 
+    preserving keyboard visibility). Example:
+
+:is(.btn, .form-control, .form-check-input):focus-visible {
+  box-shadow: ...;
+}
+
+
+Ensure color contrast of the blue ring meets accessibility 
+    guidelines against backgrounds.
+
+Keep a fallback for browsers that don’t support :focus-visible 
+    if you rely only on it.
+
+3) Base layout for full-height and footer spacing
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  margin-bottom: 60px;
+}
+
+
+html { position: relative; min-height: 100%; } ensures the root 
+    element is at least the viewport height and positioned—useful 
+    when you want anchored elements (e.g., a sticky footer) 
+    positioned relative to the viewport.
+
+body { margin-bottom: 60px; } reserves vertical space at the 
+    bottom of the page (commonly used to make room for a 
+    fixed footer that sits on top of the page).
+
+Note: The 60px must match the footer’s height. If footer height 
+    changes, update this value or use CSS layout techniques 
+    (grid/flex) to avoid manual margin sync issues.
+
+4) Placeholder styling for .form-floating
+.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
+  color: var(--bs-secondary-color);
+  text-align: end;
+}
+
+.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
+  text-align: start;
+}
+
+
+Targets placeholders inside .form-floating inputs and plaintext 
+    controls (Bootstrap’s form-floating pattern).
+
+Default behavior: placeholder text color is set to var(--bs-secondary-color) 
+    (a Bootstrap CSS variable), and placeholder alignment is text-align: 
+    end (right-aligned in LTR).
+
+When the input receives focus, the placeholder alignment becomes start (left-aligned).
+
+Likely intention: visual alignment where floating labels or placeholders 
+    start/end depending on state — custom to your form design.
+
+Notes:
+
+::placeholder affects only the placeholder text, not labels. Some browsers 
+    require vendor-prefixed pseudo-elements for full compatibility 
+    (::-webkit-input-placeholder, ::-moz-placeholder), but modern 
+    browsers support ::placeholder.
+
+Using text-align: end/start is useful for RTL/LTR friendly alignment.
+
+5) Navbar spacing tweaks
+ small tweaks for navbar spacing 
+.navbar-brand {
+    letter-spacing: .5px;
+}
+
+.navbar .btn-success {
+    padding: .375rem .6rem;
+}
+
+@media (max-width: 767px) {
+    .nav-link {
+        padding: .35rem 0.5rem;
+    }
+}
+
+
+.navbar-brand {
+    letter-spacing: .5px;
+}
+
+slightly increases horizontal spacing between letters for brand text 
+    (subtle visual effect).
+
+.navbar .btn-success {
+    padding: .375rem .6rem;
+}
+
+custom padding for success-styled buttons inside the navbar 
+    (overrides default Bootstrap values for a tighter/looser fit).
+
+Media query: for small screens (≤767px) .nav-link padding is reduced to 
+    .35rem 0.5rem to save space in the collapsed or narrow navbar.
+
+Notes:
+
+These are small visual adjustments to make the navbar more 
+    compact on small screens and to adjust brand typography.
+
+Since .navbar .btn-success uses a descendant selector, it 
+    will only affect .btn-success inside .navbar.
+
+Accessibility & maintainability recommendations
+
+Prefer :focus-visible for focus styles
+
+It reduces visual noise for mouse users while preserving 
+    keyboard visibility:
+
+.btn:focus-visible, .form-control:focus-visible {
+    box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+
+Avoid hardcoding px for root font-size if you want to respect user scaling
+
+Consider 100% or 16px only when necessary. If you keep the 
+    responsive rem scale, ensure components use rem units.
+
+Use variables for repeated values
+
+For colors and spacing used in multiple places, define CSS 
+    variables at :root to make future theme changes easier:
+
+:root {
+    --focus-inner: 0.1rem;
+    --focus-outer: 0.25rem;
+    --focus-color: #258cfb;
+}
+
+
+Footer spacing: prefer layout-based solutions
+
+Instead of body {
+    margin-bottom: 60px;
+}
+
+, consider CSS Grid/flex layouts that naturally keep footer 
+    outside content flow without manual margins:
+
+html, body {
+    height: 100%;
+}
+
+.site {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.content {
+    flex: 1;
+}
+
+footer {
+    height: 60px;
+}
+
+
+Cross-browser placeholder support
+
+Modern browsers support ::placeholder, but if you must support 
+    old browsers, consider vendor prefixed rules (rarely needed today).
+
+Contrast check
+
+Ensure the #258cfb ring and the white inner ring are visible 
+    against varied backgrounds — verify with automated contrast tools.
+
+Small improved example (focus + variables + focus-visible)
+:root {
+    --focus-inner: 0.1rem;
+    --focus-outer: 0.25rem;
+    --focus-color: #258cfb;
+}
+
+ responsive root font-size 
+html {
+    font-size: 14px;
+}
+
+@media (min-width: 768px) {
+    html {
+        font-size: 16px;
+    }
+}
+
+ focus for keyboard users only 
+:is(.btn, .form-control, .form-check-input):focus-visible {
+    box-shadow: 0 0 0 var(--focus-inner) white, 0 0 0 var(--focus-outer) var(--focus-color);
+}
+*/
